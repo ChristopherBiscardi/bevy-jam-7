@@ -10,15 +10,15 @@ on:
         type: string
       build_for_windows:
         description: "Build for Windows (WARNING: slow!)"
-        default: true
+        default: false
         type: boolean
       build_for_macos:
         description: "Build for macOS"
-        default: true
+        default: false
         type: boolean
       build_for_linux:
         description: "Build for Linux"
-        default: true
+        default: false
         type: boolean
       build_for_web:
         description: "Build for web"
