@@ -40,7 +40,14 @@ pub fn app() -> App {
     let mut app = App::new();
 
     app.insert_resource(ClearColor(SKY_800.into()))
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                // resizable: (),
+                fit_canvas_to_parent: true,
+                ..default()
+            }),
+            ..default()
+        }))
         .add_plugins((
             #[cfg(feature = "inspector_egui")]
             EguiPlugin::default(),
