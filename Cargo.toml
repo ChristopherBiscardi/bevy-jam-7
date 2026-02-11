@@ -49,6 +49,9 @@ rand_core = "0.10.0"
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.3", features = ["wasm_js"] }
 
+[target.'cfg(all(target_family = "wasm", any(target_os = "unknown", target_os = "none")))'.dependencies]
+bevy_rand = { version = "0.14", features = ["wasm_js"] }
+
 [features]
 # Default to a native dev build.
 default = ["dev_native"]
