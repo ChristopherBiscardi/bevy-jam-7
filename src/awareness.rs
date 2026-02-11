@@ -41,8 +41,7 @@ fn detect_in_range(
     )>,
     mut gizmos: Gizmos,
 ) {
-    for (tracking_info, transform, _detected) in
-        &mut query
+    for (tracking_info, transform, _detected) in &mut query
     {
         gizmos.circle(
             transform.translation(),
@@ -60,8 +59,7 @@ fn detect_out_of_range(
     )>,
     mut gizmos: Gizmos,
 ) {
-    for (tracking_info, transform, _detected) in
-        &mut query
+    for (tracking_info, transform, _detected) in &mut query
     {
         gizmos.circle(
             transform.translation(),
