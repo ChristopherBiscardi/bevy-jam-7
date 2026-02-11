@@ -48,8 +48,6 @@ fn on_add_default_atmosphere(
         Bloom::NATURAL,
         // Enables the atmosphere to drive reflections and ambient lighting (IBL) for this view
         AtmosphereEnvironmentMapLight::default(),
-        #[cfg(feature = "free_camera")]
-        FreeCamera::default(),
         VolumetricFog {
             ambient_intensity: 0.0,
             ..default()

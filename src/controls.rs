@@ -30,7 +30,6 @@ fn apply_movement(
         &mut Transform,
         With<ControlledByPlayer>,
     >,
-    mut gizmos: Gizmos,
 ) {
     let mut transform =
         transforms.get_mut(movement.context).unwrap();
@@ -43,21 +42,11 @@ fn apply_movement(
     velocity.z = -velocity.z;
 
     let distance_to_move = rotation * velocity;
-    // info!(?distance_to_move, angle=?distance_to_move.xz().normalize().to_angle());
-    let t = *transform;
-    gizmos.axes(t, 3.);
-    // gizmos.line(
-    //     transform.translation,
-    //     (transform.translation + distance_to_move) * 200.,
-    //     Color::WHITE,
-    // );
 
     transform.translation += distance_to_move;
-    info!(movement=?movement.value);
     transform.rotation = Quat::from_rotation_y(
         movement.value.to_angle() + FRAC_PI_4,
     );
-    // transform.translation += Vec3::NEG_Z * 0.01;
 }
 
 fn on_add_controls(
