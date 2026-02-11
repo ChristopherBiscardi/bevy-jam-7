@@ -34,8 +34,9 @@ fn apply_movement(
     let mut transform =
         transforms.get_mut(movement.context).unwrap();
 
-    // rotation is -45deg so that it goes "north", as per the camera
-    // TODO: is camera rotation in-scope?
+    // rotation is -45deg so that it goes "north", as
+    // per the camera TODO: is camera rotation
+    // in-scope?
     let rotation = Quat::from_rotation_y(-FRAC_PI_4);
 
     let mut velocity = movement.value.extend(0.0).xzy();

@@ -34,19 +34,22 @@ fn on_add_default_atmosphere(
             scattering_mediums
                 .add(ScatteringMedium::default()),
         ),
-        // Can be adjusted to change the scene scale and rendering quality
+        // Can be adjusted to change the scene scale and
+        // rendering quality
         AtmosphereSettings::default(),
-        // The directional light illuminance used in this scene
-        // (the one recommended for use with this feature) is
-        // quite bright, so raising the exposure compensation helps
+        // The directional light illuminance used in this
+        // scene (the one recommended for use with
+        // this feature) is quite bright, so
+        // raising the exposure compensation helps
         // bring the scene to a nicer brightness range.
         Exposure { ev100: 13.0 },
-        // Tonemapper chosen just because it looked good with the scene, any
-        // tonemapper would be fine :)
-        // Tonemapping::AcesFitted,
+        // Tonemapper chosen just because it looked good
+        // with the scene, any tonemapper would be
+        // fine :) Tonemapping::AcesFitted,
         // Bloom gives the sun a much more natural look.
         Bloom::NATURAL,
-        // Enables the atmosphere to drive reflections and ambient lighting (IBL) for this view
+        // Enables the atmosphere to drive reflections and
+        // ambient lighting (IBL) for this view
         AtmosphereEnvironmentMapLight::default(),
         VolumetricFog {
             ambient_intensity: 0.0,

@@ -104,11 +104,14 @@ struct CylinderMaterial;
     Asset, AsBindGroup, Reflect, Debug, Clone, Default,
 )]
 pub struct SpawnCircleExt {
-    // We need to ensure that the bindings of the base material and the extension do not conflict,
-    // so we start from binding slot 100, leaving slots 0-99 for the base material.
+    // We need to ensure that the bindings of the base
+    // material and the extension do not conflict,
+    // so we start from binding slot 100, leaving slots
+    // 0-99 for the base material.
     #[uniform(100)]
     pub(crate) spawn_time: f32,
-    // Web examples WebGL2 support: structs must be 16 byte aligned.
+    // Web examples WebGL2 support: structs must be 16 byte
+    // aligned.
     #[cfg(feature = "webgl2")]
     #[uniform(100)]
     _webgl2_padding_8b: u32,
@@ -135,11 +138,14 @@ impl MaterialExtension for SpawnCircleExt {
     Asset, AsBindGroup, Reflect, Debug, Clone, Default,
 )]
 pub struct SpawnColumnExt {
-    // We need to ensure that the bindings of the base material and the extension do not conflict,
-    // so we start from binding slot 100, leaving slots 0-99 for the base material.
+    // We need to ensure that the bindings of the base
+    // material and the extension do not conflict,
+    // so we start from binding slot 100, leaving slots
+    // 0-99 for the base material.
     #[uniform(100)]
     pub(crate) spawn_time: f32,
-    // Web examples WebGL2 support: structs must be 16 byte aligned.
+    // Web examples WebGL2 support: structs must be 16 byte
+    // aligned.
     #[cfg(feature = "webgl2")]
     #[uniform(100)]
     _webgl2_padding_8b: u32,

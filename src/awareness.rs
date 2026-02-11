@@ -26,8 +26,8 @@ struct TrackEntities {
 #[derive(Component, Default)]
 struct DetectedEntities(EntityHashSet);
 
-/// An entity that can be detected by this module if it
-/// is in range of another entity
+/// An entity that can be detected by this module
+/// if it is in range of another entity
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 #[type_path = "api"]

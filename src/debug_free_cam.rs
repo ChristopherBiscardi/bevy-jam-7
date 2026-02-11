@@ -32,8 +32,8 @@ fn spawn_debug_cam(mut commands: Commands) {
         },
         Transform::from_xyz(-5., 3., 5.)
             .looking_at(Vec3::ZERO, Vec3::Y),
-        // TODO: Why does having Atmosphere on two cameras crash the shader?
-        // DefaultAtmosphere,
+        // TODO: Why does having Atmosphere on two cameras
+        // crash the shader? DefaultAtmosphere,
         FreeCamera {
             // sensitivity: todo!(),
             key_forward: KeyCode::ArrowUp,

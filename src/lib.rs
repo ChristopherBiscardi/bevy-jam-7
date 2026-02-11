@@ -120,15 +120,19 @@ pub fn app() -> App {
                 With<Eyeball>,
             >,
              time: Res<Time>| {
-                // for mut transform in &mut transforms {
+                // for mut transform in &mut
+                // transforms {
                 //     transform.translation.x =
-                //         time.elapsed_secs().sin() * 2.;
+                //         time.elapsed_secs().
+                // sin() * 2.;
                 //     transform.translation.z =
-                //         time.elapsed_secs().cos() * 2. + 2.;
+                //         time.elapsed_secs().
+                // cos() * 2. + 2.;
 
                 //     transform.rotation =
                 //         Quat::from_rotation_y(
-                //             time.elapsed_secs() - FRAC_PI_2,
+                //             time.elapsed_secs()
+                // - FRAC_PI_2,
                 //         );
                 // }
             },
@@ -179,11 +183,14 @@ fn startup(
     commands.spawn((
         DirectionalLight {
             shadows_enabled: true,
-            // lux::RAW_SUNLIGHT is recommended for use with this feature, since
-            // other values approximate sunlight *post-scattering* in various
-            // conditions. RAW_SUNLIGHT in comparison is the illuminance of the
-            // sun unfiltered by the atmosphere, so it is the proper input for
-            // sunlight to be filtered by the atmosphere.
+            // lux::RAW_SUNLIGHT is recommended for use with
+            // this feature, since other values
+            // approximate sunlight *post-scattering* in
+            // various conditions. RAW_SUNLIGHT
+            // in comparison is the illuminance of the
+            // sun unfiltered by the atmosphere, so it is
+            // the proper input for sunlight to
+            // be filtered by the atmosphere.
             illuminance: lux::FULL_DAYLIGHT,
             //             FULL_DAYLIGHT
             // DIRECT_SUNLIGHT
@@ -196,9 +203,9 @@ fn startup(
     ));
     // commands.spawn((
     //     FogVolume::default(),
-    //     Transform::from_scale(Vec3::new(10.0, 1.0, 10.0))
-    //         .with_translation(Vec3::Y * 0.5),
-    // ));
+    //     Transform::from_scale(Vec3::new(10.0, 1.0,
+    // 10.0))         .with_translation(Vec3::Y *
+    // 0.5), ));
     commands
         .spawn(SceneRoot(
             asset_server.load(
