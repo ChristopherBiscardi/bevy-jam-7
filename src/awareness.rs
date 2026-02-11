@@ -1,7 +1,6 @@
 use bevy::{
     color::palettes::tailwind::*,
-    ecs::entity::EntityHashSet,
-    math::bounding::BoundingCircle, prelude::*,
+    ecs::entity::EntityHashSet, prelude::*,
 };
 
 pub struct AwarenessPlugin;
@@ -34,7 +33,7 @@ struct DetectedEntities(EntityHashSet);
 pub struct Detectable;
 
 fn detect_in_range(
-    entities: Query<&GlobalTransform, With<Detectable>>,
+    _entities: Query<&GlobalTransform, With<Detectable>>,
     mut query: Query<(
         &TrackEntities,
         &GlobalTransform,
@@ -42,7 +41,7 @@ fn detect_in_range(
     )>,
     mut gizmos: Gizmos,
 ) {
-    for (tracking_info, transform, mut detected) in
+    for (tracking_info, transform, _detected) in
         &mut query
     {
         gizmos.circle(
@@ -53,7 +52,7 @@ fn detect_in_range(
     }
 }
 fn detect_out_of_range(
-    entities: Query<&GlobalTransform, With<Detectable>>,
+    _entities: Query<&GlobalTransform, With<Detectable>>,
     mut query: Query<(
         &TrackEntities,
         &GlobalTransform,
@@ -61,7 +60,7 @@ fn detect_out_of_range(
     )>,
     mut gizmos: Gizmos,
 ) {
-    for (tracking_info, transform, mut detected) in
+    for (tracking_info, transform, _detected) in
         &mut query
     {
         gizmos.circle(

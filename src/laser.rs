@@ -27,6 +27,6 @@ impl Plugin for LaserPlugin {
 struct RunningLaserProcess;
 
 fn on_add_running_laser_process(
-    added: On<Add, RunningLaserProcess>,
+    _added: On<Add, RunningLaserProcess>,
 ) {
 }

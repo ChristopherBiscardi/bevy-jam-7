@@ -57,6 +57,7 @@ bevy_rand = { version = "0.14", features = ["wasm_js"] }
 default = ["dev_native"]
 inspector_egui = ["dep:bevy-inspector-egui"]
 free_camera = ["bevy/free_camera"]
+webgl2 = []
 dev = [
     # "free_camera",
     "inspector_egui",

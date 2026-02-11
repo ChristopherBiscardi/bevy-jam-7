@@ -1,5 +1,5 @@
 use bevy::{
-    anti_alias::{smaa::Smaa, taa::TemporalAntiAliasing},
+    anti_alias::smaa::Smaa,
     camera::Exposure,
     light::{AtmosphereEnvironmentMapLight, VolumetricFog},
     pbr::{

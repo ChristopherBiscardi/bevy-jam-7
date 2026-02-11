@@ -181,7 +181,7 @@ fn spawn_cylinder(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
 ) {
-    for (entity, mut timer, transform) in &mut query {
+    for (entity, mut timer, _transform) in &mut query {
         if timer.0.tick(time.delta()).just_finished() {
             commands
                 .entity(entity)
@@ -259,7 +259,7 @@ fn spawn_circle_spawn(
                 .entity(entity)
                 .remove::<SpawnCircleSpawnTimer>();
 
-            let mut new_transform = transform.clone();
+            let mut new_transform = *transform;
             new_transform.translation.y = 0.5;
             commands.spawn((
                 Name::new("Eye"),
@@ -281,7 +281,7 @@ pub struct InitSpawnCircle {
 }
 
 impl Command for InitSpawnCircle {
-    fn apply(self, world: &mut World) -> () {
+    fn apply(self, world: &mut World) {
         let spawn_circle_texture = world
             .resource_mut::<AssetServer>()
             .load("spawn-circle-001.png");

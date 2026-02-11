@@ -115,11 +115,11 @@ pub fn app() -> App {
         )
         .add_systems(
             FixedUpdate,
-            |mut transforms: Query<
+            |_transforms: Query<
                 &mut Transform,
                 With<Eyeball>,
             >,
-             time: Res<Time>| {
+             _time: Res<Time>| {
                 // for mut transform in &mut
                 // transforms {
                 //     transform.translation.x =
@@ -223,7 +223,7 @@ fn startup(
                 for child in
                     children.iter_descendants(ready.entity)
                 {
-                    if let Ok((name, material)) =
+                    if let Ok((name, _material)) =
                         query.get(child)
                     {
                         match name.0.as_str() {
