@@ -7,6 +7,8 @@ use bevy::{
     shader::ShaderRef,
 };
 
+use crate::assets::{GltfAssets, MyStates};
+
 pub struct SpawnCirclePlugin;
 
 impl Plugin for SpawnCirclePlugin {
@@ -25,7 +27,7 @@ impl Plugin for SpawnCirclePlugin {
         >::default()))
             .add_systems(
                 Update,
-                (scale_base, spawn_cylinder, spawn_circle_spawn),
+                (scale_base, spawn_cylinder, spawn_circle_spawn).run_if(in_state(MyStates::Next)),
             )
             .add_observer(
                 |added: On<Add, CylinderMaterial>,
@@ -51,7 +53,8 @@ impl Plugin for SpawnCirclePlugin {
                                     base: mat.clone(),
                                     extension: SpawnColumnExt {
                                         spawn_time: time.elapsed_secs(),
-                                        spawn_color: RED_400.into()
+                                        spawn_color: RED_400.into(),
+                                        ..default()
                                     },
                                 },
                             )),
@@ -179,7 +182,8 @@ fn spawn_cylinder(
     )>,
     time: Res<Time>,
     mut commands: Commands,
-    asset_server: ResMut<AssetServer>,
+    gltf: ResMut<GltfAssets>,
+    gltfs: Res<Assets<Gltf>>,
 ) {
     for (entity, mut timer, _transform) in &mut query {
         if timer.0.tick(time.delta()).just_finished() {
@@ -191,12 +195,10 @@ fn spawn_cylinder(
                 .spawn((
                     Name::new("CylinderScene"),
                     SceneRoot(
-                        asset_server.load(
-                            GltfAssetLabel::Scene(3)
-                                .from_asset(
-                                    "001/misc.gltf",
-                                ),
-                        ),
+                        gltfs
+                            .get(&gltf.misc)
+                            .unwrap()
+                            .named_scenes["SpawnCircleColumn"].clone(),
                     ),
                     Transform::default()
                         .with_scale(Vec3::splat(0.4)),
@@ -251,7 +253,8 @@ fn spawn_circle_spawn(
     )>,
     time: Res<Time>,
     mut commands: Commands,
-    asset_server: ResMut<AssetServer>,
+    gltfs: Res<Assets<Gltf>>,
+    gltf: Res<GltfAssets>,
 ) {
     for (entity, mut timer, transform) in &mut query {
         if timer.0.tick(time.delta()).just_finished() {
@@ -264,10 +267,11 @@ fn spawn_circle_spawn(
             commands.spawn((
                 Name::new("Eye"),
                 SceneRoot(
-                    asset_server.load(
-                        GltfAssetLabel::Scene(1)
-                            .from_asset("001/misc.gltf"),
-                    ),
+                    gltfs
+                        .get(&gltf.misc)
+                        .unwrap()
+                        .named_scenes["Eye"]
+                        .clone(),
                 ),
                 new_transform, // transform.clone(), // .with_scale(Vec3::splat(0.4)),
             ));
@@ -308,6 +312,7 @@ impl Command for InitSpawnCircle {
                 extension: SpawnCircleExt {
                     spawn_time: time,
                     spawn_color: RED_400.into(),
+                    ..default()
                 },
             });
         world.spawn((

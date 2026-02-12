@@ -23,10 +23,12 @@ use bevy_shader_utils::ShaderUtilsPlugin;
 use bevy_skein::SkeinPlugin;
 
 use crate::{
+    assets::{GltfAssets, JamAssetsPlugin, MyStates},
     atmosphere::DefaultAtmosphere,
     spawn_circle::InitSpawnCircle,
 };
 
+pub mod assets;
 pub mod atmosphere;
 pub mod awareness;
 pub mod controls;
@@ -71,6 +73,7 @@ pub fn app() -> App {
             #[cfg(feature = "free_camera")]
             debug_free_cam::DebugCamPlugin,
             spawn_circle::SpawnCirclePlugin,
+            JamAssetsPlugin,
         ))
         .add_systems(Startup, startup)
         .add_systems(Update, |mut gizmos: Gizmos| {
@@ -97,28 +100,7 @@ pub fn app() -> App {
         )
         .add_systems(
             FixedUpdate,
-            |mut commands: Commands,
-             mut rng: Single<
-                &mut WyRand,
-                With<GlobalRng>,
-            >,
-             mut timer: Local<TestSpawnTimer>,
-             time: Res<Time>| {
-                if timer
-                    .0
-                    .tick(time.delta())
-                    .just_finished()
-                {
-                    let plane = Rectangle::from_size(
-                        Vec2::new(20., 20.),
-                    );
-
-                    commands.queue(InitSpawnCircle {
-                        position: plane
-                            .sample_interior(&mut rng),
-                    });
-                }
-            },
+            random_spawn_eyes.run_if(in_state(MyStates::Next)),
         )
         .add_systems(
             FixedUpdate,
@@ -141,6 +123,47 @@ pub fn app() -> App {
                 //             time.elapsed_secs()
                 // - FRAC_PI_2, );
                 // }
+            },
+        )
+        .add_systems(
+            OnEnter(MyStates::Next),
+            |mut commands: Commands,
+             gltfs: Res<Assets<Gltf>>,
+             gltf: Res<GltfAssets>| {
+                commands
+        .spawn(SceneRoot(
+            gltfs.get(&gltf.misc).unwrap().named_scenes["Scene"].clone()
+        ))
+        .observe(
+            |ready: On<SceneInstanceReady>,
+             children: Query<&Children>,
+             query: Query<(
+                &GltfMaterialName,
+                &MeshMaterial3d<StandardMaterial>,
+            )>,
+             mut commands: Commands| {
+                for child in
+                    children.iter_descendants(ready.entity)
+                {
+                    if let Ok((name, _material)) =
+                        query.get(child)
+                    {
+                        match name.0.as_str() {
+                            "Floor" => {
+                                commands
+                                    .entity(child)
+                                    .insert(
+                                        UseBlockoutMaterial,
+                                    );
+                            }
+                            name => {
+                                info!(?name);
+                            }
+                        };
+                    };
+                }
+            },
+        );
             },
         );
 
@@ -212,41 +235,20 @@ fn startup(
     //     Transform::from_scale(Vec3::new(10.0, 1.0,
     // 10.0))         .with_translation(Vec3::Y *
     // 0.5), ));
-    commands
-        .spawn(SceneRoot(
-            asset_server.load(
-                GltfAssetLabel::Scene(2)
-                    .from_asset("001/misc.gltf"),
-            ),
-        ))
-        .observe(
-            |ready: On<SceneInstanceReady>,
-             children: Query<&Children>,
-             query: Query<(
-                &GltfMaterialName,
-                &MeshMaterial3d<StandardMaterial>,
-            )>,
-             mut commands: Commands| {
-                for child in
-                    children.iter_descendants(ready.entity)
-                {
-                    if let Ok((name, _material)) =
-                        query.get(child)
-                    {
-                        match name.0.as_str() {
-                            "Floor" => {
-                                commands
-                                    .entity(child)
-                                    .insert(
-                                        UseBlockoutMaterial,
-                                    );
-                            }
-                            name => {
-                                info!(?name);
-                            }
-                        };
-                    };
-                }
-            },
-        );
+}
+
+fn random_spawn_eyes(
+    mut commands: Commands,
+    mut rng: Single<&mut WyRand, With<GlobalRng>>,
+    mut timer: Local<TestSpawnTimer>,
+    time: Res<Time>,
+) {
+    if timer.0.tick(time.delta()).just_finished() {
+        let plane =
+            Rectangle::from_size(Vec2::new(20., 20.));
+
+        commands.queue(InitSpawnCircle {
+            position: plane.sample_interior(&mut rng),
+        });
+    }
 }

@@ -45,6 +45,8 @@ bevy_blockout = "0.4"
 bevy_shader_utils = "0.10.0"
 bevy_rand = { version = "0.14.0", features = ["wyrand"] }
 rand_core = "0.10.0"
+bevy_asset_loader = "0.25.0"
+iyes_progress = "0.16.0"
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.3", features = ["wasm_js"] }
@@ -59,7 +61,7 @@ inspector_egui = ["dep:bevy-inspector-egui"]
 free_camera = ["bevy/free_camera"]
 webgl2 = []
 dev = [
-    # "free_camera",
+    "free_camera",
     "inspector_egui",
     # Improve compile times for dev builds by linking Bevy as a dynamic library.
     "bevy/bevy_dev_tools",
