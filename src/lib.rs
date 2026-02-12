@@ -1,4 +1,4 @@
-use std::f32::consts::FRAC_PI_2;
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 
 use bevy::{
     color::palettes::tailwind::*,
@@ -25,7 +25,10 @@ use bevy_skein::SkeinPlugin;
 use crate::{
     assets::{GltfAssets, JamAssetsPlugin, MyStates},
     atmosphere::DefaultAtmosphere,
-    spawn_circle::InitSpawnCircle,
+    spawn_circle::{
+        InitSpawnCircle, SpawnSystems,
+        spawn_systems::{ScaleIn, TranslateUpIn},
+    },
 };
 
 pub mod assets;
@@ -76,6 +79,7 @@ pub fn app() -> App {
             JamAssetsPlugin,
         ))
         .add_systems(Startup, startup)
+        .add_systems(FixedUpdate, (trigger_move_eyes_temp, move_eyes_temp))
         .add_systems(Update, |mut gizmos: Gizmos| {
             gizmos.circle(
                 Isometry3d::new(
@@ -87,16 +91,7 @@ pub fn app() -> App {
             );
         })
         .add_observer(
-            |mut picked: On<Pointer<Click>>,
-             mut commands: Commands| {
-                picked.propagate(false);
-                if let Some(position) = picked.hit.position
-                {
-                    commands.queue(InitSpawnCircle {
-                        position: position.xz(),
-                    });
-                }
-            },
+            pointer_click_spawn_eye
         )
         .add_systems(
             FixedUpdate,
@@ -170,6 +165,24 @@ pub fn app() -> App {
     app
 }
 
+fn pointer_click_spawn_eye(
+    mut picked: On<Pointer<Click>>,
+    mut commands: Commands,
+    spawn_systems: Res<SpawnSystems>,
+) {
+    picked.propagate(false);
+    if let Some(position) = picked.hit.position {
+        let id = spawn_systems.0.get("eye").unwrap();
+
+        commands.queue(InitSpawnCircle {
+            position: position.xz(),
+            event: *id,
+        });
+    } else {
+        warn!("spawn attempt without a hit position");
+    }
+}
+
 #[derive(Component)]
 struct TestSpawnTimer(Timer);
 impl Default for TestSpawnTimer {
@@ -192,10 +205,7 @@ struct Eyeball;
 #[require(controls::ControlledByPlayer)]
 struct PlayerCharacter;
 
-fn startup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+fn startup(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(-1., 1., 1.)
@@ -232,9 +242,9 @@ fn startup(
     ));
     // commands.spawn((
     //     FogVolume::default(),
-    //     Transform::from_scale(Vec3::new(10.0, 1.0,
-    // 10.0))         .with_translation(Vec3::Y *
-    // 0.5), ));
+    //     Transform::from_scale(Vec3::new(10.0,
+    // 1.0, 10.0))
+    // .with_translation(Vec3::Y * 0.5), ));
 }
 
 fn random_spawn_eyes(
@@ -242,13 +252,113 @@ fn random_spawn_eyes(
     mut rng: Single<&mut WyRand, With<GlobalRng>>,
     mut timer: Local<TestSpawnTimer>,
     time: Res<Time>,
+    spawn_systems: Res<SpawnSystems>,
 ) {
     if timer.0.tick(time.delta()).just_finished() {
         let plane =
             Rectangle::from_size(Vec2::new(20., 20.));
 
+        let id = spawn_systems.0.get("eye").unwrap();
+
         commands.queue(InitSpawnCircle {
             position: plane.sample_interior(&mut rng),
+            event: *id,
         });
+    }
+}
+
+#[derive(Component)]
+struct MoveRandomly {
+    from: Vec2,
+    to: Vec2,
+}
+
+fn trigger_move_eyes_temp(
+    query: Query<
+        (Entity, &Transform),
+        (
+            With<Eyeball>,
+            Without<MoveRandomly>,
+            Without<ScaleIn>,
+            Without<TranslateUpIn>,
+        ),
+    >,
+    mut rng: Single<&mut WyRand, With<GlobalRng>>,
+    mut commands: Commands,
+    time: Res<Time>,
+) {
+    let plane = Rectangle::from_size(Vec2::new(20., 20.));
+
+    for (entity, transform) in &query {
+        commands.entity(entity).insert(MoveRandomly {
+            from: transform.translation.xz(),
+            to: plane.sample_interior(&mut rng),
+        });
+    }
+}
+
+fn move_eyes_temp(
+    mut query: Query<
+        (
+            Entity,
+            &mut Transform,
+            &GlobalTransform,
+            &MoveRandomly,
+        ),
+        With<Eyeball>,
+    >,
+    mut rng: Single<&mut WyRand, With<GlobalRng>>,
+    mut commands: Commands,
+    time: Res<Time>,
+    // mut gizmos: Gizmos,
+) {
+    for (entity, mut transform, global, move_randomly) in
+        &mut query
+    {
+        // gizmos.arrow(
+        //     global.translation(),
+        //     move_randomly
+        //         .to
+        //         .extend(global.translation().y)
+        //         .xzy(),
+        //     Color::WHITE,
+        // );
+        // gizmos.sphere(
+        //     move_randomly.to.extend(0.).xzy(),
+        //     0.5,
+        //     GREEN_400,
+        // );
+        if global
+            .translation()
+            .xz()
+            .distance(move_randomly.to)
+            < 0.1
+        {
+            let plane =
+                Rectangle::from_size(Vec2::new(20., 20.));
+
+            commands.entity(entity).insert(MoveRandomly {
+                from: transform.translation.xz(),
+                to: plane.sample_interior(&mut rng),
+            });
+        } else {
+            let direction = (move_randomly.to
+                - global.translation().xz())
+            .normalize();
+            let movement = direction * time.delta_secs();
+            transform.translation +=
+                movement.extend(0.).xzy();
+
+            transform.look_at(
+                move_randomly
+                    .to
+                    .extend(global.translation().y)
+                    .xzy(),
+                Vec3::Y,
+            );
+            // rotation = Quat::from_rotation_y(
+            //     direction.to_angle() - FRAC_PI_4,
+            // );
+        }
     }
 }

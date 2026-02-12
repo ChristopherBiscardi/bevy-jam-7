@@ -7,7 +7,7 @@
 		"NOT_BEVY_EXTENSION",
 		"BEVY_skein"
 	],
-	"scene":3,
+	"scene":1,
 	"scenes":[
 		{
 			"name":"Coin",
@@ -26,14 +26,13 @@
 			"nodes":[
 				2,
 				3,
-				5,
-				6
+				4
 			]
 		},
 		{
 			"name":"SpawnCircleColumn",
 			"nodes":[
-				7
+				5
 			]
 		}
 	],
@@ -43,15 +42,6 @@
 			"name":"Cylinder"
 		},
 		{
-			"extensions":{
-				"BEVY_skein":{
-					"components":[
-						{
-							"api::Eyeball":{}
-						}
-					]
-				}
-			},
 			"mesh":1,
 			"name":"EyeObj"
 		},
@@ -67,30 +57,6 @@
 		{
 			"mesh":3,
 			"name":"Plane"
-		},
-		{
-			"extensions":{
-				"BEVY_skein":{
-					"components":[
-						{
-							"api::Eyeball":{}
-						}
-					]
-				}
-			},
-			"mesh":1,
-			"name":"EyeObj"
-		},
-		{
-			"children":[
-				4
-			],
-			"name":"EyeCollection",
-			"translation":[
-				0,
-				0.5,
-				-2
-			]
 		},
 		{
 			"extensions":{
@@ -375,18 +341,18 @@
 	"images":[
 		{
 			"mimeType":"image/png",
-			"name":"DefaultMaterial_Emission",
-			"uri":"DefaultMaterial_Emission.png"
+			"name":"eyeball_Emission",
+			"uri":"eyeball_Emission.png"
 		},
 		{
 			"mimeType":"image/png",
-			"name":"DefaultMaterial_BaseColor",
-			"uri":"DefaultMaterial_BaseColor.png"
+			"name":"eyeball_BaseColor",
+			"uri":"eyeball_BaseColor.png"
 		},
 		{
 			"mimeType":"image/png",
-			"name":"DefaultMaterial_Roughness",
-			"uri":"DefaultMaterial_Roughness.png"
+			"name":"eyeball_Roughness",
+			"uri":"eyeball_Roughness.png"
 		}
 	],
 	"accessors":[
