@@ -4,16 +4,37 @@ use bevy::prelude::*;
 
 use crate::{Eyeball, assets::GltfAssets};
 
+trait AppSpawnExt {
+    fn register_spawn_system<M>(
+        &mut self,
+        id: String,
+        system: impl IntoSystem<In<Transform>, (), M> + 'static,
+    ) -> &mut App;
+}
+
+impl AppSpawnExt for App {
+    fn register_spawn_system<M>(
+        &mut self,
+        id: String,
+        system: impl IntoSystem<In<Transform>, (), M> + 'static,
+    ) -> &mut App {
+        let system_id =
+            self.world_mut().register_system(system);
+        self.world_mut()
+            .resource_mut::<super::SpawnSystems>()
+            .0
+            .insert(id, system_id);
+        self
+    }
+}
+
 pub struct SpawnSystemsPlugin;
 impl Plugin for SpawnSystemsPlugin {
     fn build(&self, app: &mut App) {
-        let eye = app
-            .world_mut()
-            .register_system(one_shot_spawn_eye);
-        app.world_mut()
-            .resource_mut::<super::SpawnSystems>()
-            .0
-            .insert("eye".to_string(), eye);
+        app.register_spawn_system(
+            "eye".to_string(),
+            one_shot_spawn_eye,
+        );
 
         app.add_systems(
             Update,

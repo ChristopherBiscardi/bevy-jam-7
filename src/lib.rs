@@ -1,10 +1,11 @@
-use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
+use std::f32::consts::FRAC_PI_2;
 
 use bevy::{
     color::palettes::tailwind::*,
     gltf::GltfMaterialName,
     input::common_conditions::input_toggle_active,
     light::{VolumetricLight, light_consts::lux},
+    math::sampling::UniformMeshSampler,
     prelude::*,
     scene::SceneInstanceReady,
 };
@@ -21,10 +22,12 @@ use bevy_rand::{
 use bevy_seedling::prelude::*;
 use bevy_shader_utils::ShaderUtilsPlugin;
 use bevy_skein::SkeinPlugin;
+use rand::{Rng, prelude::Distribution};
 
 use crate::{
     assets::{GltfAssets, JamAssetsPlugin, MyStates},
     atmosphere::DefaultAtmosphere,
+    navmesh::{NavMeshPlugin, ProcessedNavMesh},
     spawn_circle::{
         InitSpawnCircle, SpawnSystems,
         spawn_systems::{ScaleIn, TranslateUpIn},
@@ -36,6 +39,7 @@ pub mod atmosphere;
 pub mod awareness;
 pub mod controls;
 pub mod laser;
+pub mod navmesh;
 pub mod spawn_circle;
 
 #[cfg(feature = "free_camera")]
@@ -77,9 +81,23 @@ pub fn app() -> App {
             debug_free_cam::DebugCamPlugin,
             spawn_circle::SpawnCirclePlugin,
             JamAssetsPlugin,
+            NavMeshPlugin,
         ))
         .add_systems(Startup, startup)
-        .add_systems(FixedUpdate, (trigger_move_eyes_temp, move_eyes_temp))
+        .add_systems(
+            FixedUpdate,
+            (
+                trigger_move_eyes_temp.run_if(
+                    any_match_filter::<(
+                        With<Eyeball>,
+                        Without<MoveRandomly>,
+                        Without<ScaleIn>,
+                        Without<TranslateUpIn>,
+                    )>,
+                ),
+                move_eyes_temp,
+            ),
+        )
         .add_systems(Update, |mut gizmos: Gizmos| {
             gizmos.circle(
                 Isometry3d::new(
@@ -90,45 +108,33 @@ pub fn app() -> App {
                 Color::WHITE,
             );
         })
-        .add_observer(
-            pointer_click_spawn_eye
-        )
+        .add_observer(pointer_click_spawn_eye)
         .add_systems(
             FixedUpdate,
-            random_spawn_eyes.run_if(in_state(MyStates::Next)),
-        )
-        .add_systems(
-            FixedUpdate,
-            |_transforms: Query<
-                &mut Transform,
-                With<Eyeball>,
-            >,
-             _time: Res<Time>| {
-                // for mut transform in &mut
-                // transforms {
-                //     transform.translation.x =
-                //         time.elapsed_secs().
-                // sin() * 2.;
-                //     transform.translation.z =
-                //         time.elapsed_secs().
-                // cos() * 2. + 2.;
-
-                //     transform.rotation =
-                //         Quat::from_rotation_y(
-                //             time.elapsed_secs()
-                // - FRAC_PI_2, );
-                // }
-            },
+            random_spawn_eyes
+                .run_if(in_state(MyStates::Next)),
         )
         .add_systems(
             OnEnter(MyStates::Next),
-            |mut commands: Commands,
-             gltfs: Res<Assets<Gltf>>,
-             gltf: Res<GltfAssets>| {
-                commands
-        .spawn(SceneRoot(
-            gltfs.get(&gltf.misc).unwrap().named_scenes["Scene"].clone()
-        ))
+            spawn_first_level,
+        );
+
+    app
+}
+
+fn spawn_first_level(
+    mut commands: Commands,
+    gltfs: Res<Assets<Gltf>>,
+    gltf: Res<GltfAssets>,
+) {
+    commands
+        .spawn(
+            SceneRoot(
+                gltfs.get(&gltf.misc).unwrap().named_scenes
+                    ["Scene"]
+                    .clone(),
+            ),
+        )
         .observe(
             |ready: On<SceneInstanceReady>,
              children: Query<&Children>,
@@ -159,10 +165,6 @@ pub fn app() -> App {
                 }
             },
         );
-            },
-        );
-
-    app
 }
 
 fn pointer_click_spawn_eye(
@@ -286,7 +288,25 @@ fn trigger_move_eyes_temp(
     mut rng: Single<&mut WyRand, With<GlobalRng>>,
     mut commands: Commands,
     time: Res<Time>,
+    current_navmesh: Query<(&ProcessedNavMesh, &Mesh3d)>,
+    meshes: Res<Assets<Mesh>>,
 ) {
+    let Ok((navmesh, mesh)) = current_navmesh.single()
+    else {
+        return;
+    };
+
+    let mesh = meshes
+        .get(&mesh.0)
+        .expect("a valid Mesh3d should fetch a valid Mesh");
+
+    let sampler = UniformMeshSampler::try_new(
+        mesh.triangles().unwrap(),
+    )
+    .unwrap();
+
+    rng.sample(sampler);
+
     let plane = Rectangle::from_size(Vec2::new(20., 20.));
 
     for (entity, transform) in &query {
@@ -356,9 +376,6 @@ fn move_eyes_temp(
                     .xzy(),
                 Vec3::Y,
             );
-            // rotation = Quat::from_rotation_y(
-            //     direction.to_angle() - FRAC_PI_4,
-            // );
         }
     }
 }

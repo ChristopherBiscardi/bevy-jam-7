@@ -7,7 +7,7 @@
 		"NOT_BEVY_EXTENSION",
 		"BEVY_skein"
 	],
-	"scene":1,
+	"scene":2,
 	"scenes":[
 		{
 			"name":"Coin",
@@ -26,13 +26,14 @@
 			"nodes":[
 				2,
 				3,
-				4
+				4,
+				5
 			]
 		},
 		{
 			"name":"SpawnCircleColumn",
 			"nodes":[
-				5
+				6
 			]
 		}
 	],
@@ -80,7 +81,20 @@
 			]
 		},
 		{
+			"extensions":{
+				"BEVY_skein":{
+					"components":[
+						{
+							"bevy_camera::visibility::Visibility":"Hidden"
+						}
+					]
+				}
+			},
 			"mesh":5,
+			"name":"NavMesh"
+		},
+		{
+			"mesh":6,
 			"name":"Cylinder.001"
 		}
 	],
@@ -300,6 +314,37 @@
 		},
 		{
 			"extensions":{
+				"BEVY_skein":{
+					"components":[
+						{
+							"api::NavMesh":{}
+						}
+					]
+				},
+				"NOT_BEVY_EXTENSION":{
+					"components":"Here"
+				}
+			},
+			"extras":{
+				"TESTING_OUTPUT":{
+					"some":"Thing"
+				}
+			},
+			"name":"NavMesh",
+			"primitives":[
+				{
+					"attributes":{
+						"POSITION":25,
+						"NORMAL":26,
+						"TEXCOORD_0":27,
+						"TANGENT":28
+					},
+					"indices":19
+				}
+			]
+		},
+		{
+			"extensions":{
 				"NOT_BEVY_EXTENSION":{
 					"components":"Here"
 				}
@@ -313,12 +358,12 @@
 			"primitives":[
 				{
 					"attributes":{
-						"POSITION":25,
-						"NORMAL":26,
-						"TEXCOORD_0":27,
-						"TANGENT":28
+						"POSITION":29,
+						"NORMAL":30,
+						"TEXCOORD_0":31,
+						"TANGENT":32
 					},
-					"indices":29,
+					"indices":33,
 					"material":4
 				}
 			]
@@ -559,6 +604,40 @@
 		{
 			"bufferView":25,
 			"componentType":5126,
+			"count":4,
+			"max":[
+				5,
+				0,
+				5
+			],
+			"min":[
+				-5,
+				0,
+				-5
+			],
+			"type":"VEC3"
+		},
+		{
+			"bufferView":26,
+			"componentType":5126,
+			"count":4,
+			"type":"VEC3"
+		},
+		{
+			"bufferView":27,
+			"componentType":5126,
+			"count":4,
+			"type":"VEC2"
+		},
+		{
+			"bufferView":28,
+			"componentType":5126,
+			"count":4,
+			"type":"VEC4"
+		},
+		{
+			"bufferView":29,
+			"componentType":5126,
 			"count":128,
 			"max":[
 				1,
@@ -573,25 +652,25 @@
 			"type":"VEC3"
 		},
 		{
-			"bufferView":26,
+			"bufferView":30,
 			"componentType":5126,
 			"count":128,
 			"type":"VEC3"
 		},
 		{
-			"bufferView":27,
+			"bufferView":31,
 			"componentType":5126,
 			"count":128,
 			"type":"VEC2"
 		},
 		{
-			"bufferView":28,
+			"bufferView":32,
 			"componentType":5126,
 			"count":128,
 			"type":"VEC4"
 		},
 		{
-			"bufferView":29,
+			"bufferView":33,
 			"componentType":5123,
 			"count":192,
 			"type":"SCALAR"
@@ -750,32 +829,56 @@
 		},
 		{
 			"buffer":0,
-			"byteLength":1536,
+			"byteLength":48,
 			"byteOffset":151428,
 			"target":34962
 		},
 		{
 			"buffer":0,
+			"byteLength":48,
+			"byteOffset":151476,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":32,
+			"byteOffset":151524,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":64,
+			"byteOffset":151556,
+			"target":34962
+		},
+		{
+			"buffer":0,
 			"byteLength":1536,
-			"byteOffset":152964,
+			"byteOffset":151620,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":1536,
+			"byteOffset":153156,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":1024,
-			"byteOffset":154500,
+			"byteOffset":154692,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":2048,
-			"byteOffset":155524,
+			"byteOffset":155716,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":384,
-			"byteOffset":157572,
+			"byteOffset":157764,
 			"target":34963
 		}
 	],
@@ -787,7 +890,7 @@
 	],
 	"buffers":[
 		{
-			"byteLength":157956,
+			"byteLength":158148,
 			"uri":"misc.bin"
 		}
 	]

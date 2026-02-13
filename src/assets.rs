@@ -16,7 +16,7 @@ use iyes_progress::{
 // until the 'fake long task' is completed (thanks
 // to 'iyes_progress')
 // const DURATION_LONG_TASK_IN_SECS: f64 = 4.0;
-const DURATION_LONG_TASK_IN_SECS: f64 = 0.3;
+const DURATION_LONG_TASK_IN_SECS: f64 = 0.0;
 
 pub struct JamAssetsPlugin;
 
@@ -33,7 +33,8 @@ impl Plugin for JamAssetsPlugin {
             ))
             .add_loading_state(
                 LoadingState::new(MyStates::AssetLoading)
-                    .load_collection::<GltfAssets>(),
+                    .load_collection::<GltfAssets>()
+                    .load_collection::<ImageAssets>(),
             )
             .add_systems(
                 Update,
@@ -67,6 +68,12 @@ impl Plugin for JamAssetsPlugin {
 pub struct GltfAssets {
     #[asset(path = "001/misc.gltf")]
     pub misc: Handle<Gltf>,
+}
+
+#[derive(AssetCollection, Resource)]
+struct ImageAssets {
+    #[asset(path = "001/eyeball_BaseColor.png")]
+    base: Handle<Image>,
 }
 
 fn track_fake_long_task(time: Res<Time>) -> Progress {

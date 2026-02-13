@@ -205,7 +205,7 @@ fn spawn_cylinder(
     )>,
     time: Res<Time>,
     mut commands: Commands,
-    gltf: ResMut<GltfAssets>,
+    gltf: Res<GltfAssets>,
     gltfs: Res<Assets<Gltf>>,
 ) {
     for (entity, mut timer, _transform) in &mut query {
