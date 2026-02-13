@@ -17,7 +17,7 @@ struct NavMesh;
 
 #[derive(Component)]
 pub struct ProcessedNavMesh(
-    Handle<vleue_navigator::NavMesh>,
+    pub Handle<vleue_navigator::NavMesh>,
 );
 
 fn on_add_navmesh(

@@ -176,10 +176,12 @@ fn pointer_click_spawn_eye(
     if let Some(position) = picked.hit.position {
         let id = spawn_systems.0.get("eye").unwrap();
 
-        commands.queue(InitSpawnCircle {
-            position: position.xz(),
-            event: *id,
-        });
+        for i in 0..100 {
+            commands.queue(InitSpawnCircle {
+                position: position.xz(),
+                event: *id,
+            });
+        }
     } else {
         warn!("spawn attempt without a hit position");
     }
@@ -290,12 +292,14 @@ fn trigger_move_eyes_temp(
     time: Res<Time>,
     current_navmesh: Query<(&ProcessedNavMesh, &Mesh3d)>,
     meshes: Res<Assets<Mesh>>,
+    navmeshes: Res<Assets<vleue_navigator::NavMesh>>,
 ) {
     let Ok((navmesh, mesh)) = current_navmesh.single()
     else {
         return;
     };
 
+    let navmesh = navmeshes.get(&navmesh.0).expect("a valid ProcessedNavMesh should fetch a valid NavMesh");
     let mesh = meshes
         .get(&mesh.0)
         .expect("a valid Mesh3d should fetch a valid Mesh");
@@ -305,15 +309,18 @@ fn trigger_move_eyes_temp(
     )
     .unwrap();
 
-    rng.sample(sampler);
-
-    let plane = Rectangle::from_size(Vec2::new(20., 20.));
-
     for (entity, transform) in &query {
-        commands.entity(entity).insert(MoveRandomly {
-            from: transform.translation.xz(),
-            to: plane.sample_interior(&mut rng),
-        });
+        let sample = rng.sample(&sampler);
+        // TODO: loop until finding a valid position in the navmesh.
+        // but for now we're using the mesh to sample so it *should* always
+        // find a valid location
+        if navmesh.transformed_is_in_mesh(sample.with_y(0.))
+        {
+            commands.entity(entity).insert(MoveRandomly {
+                from: transform.translation.xz(),
+                to: sample.xz(),
+            });
+        }
     }
 }
 
@@ -331,6 +338,9 @@ fn move_eyes_temp(
     mut commands: Commands,
     time: Res<Time>,
     // mut gizmos: Gizmos,
+    current_navmesh: Query<(&ProcessedNavMesh, &Mesh3d)>,
+    meshes: Res<Assets<Mesh>>,
+    navmeshes: Res<Assets<vleue_navigator::NavMesh>>,
 ) {
     for (entity, mut transform, global, move_randomly) in
         &mut query
@@ -354,13 +364,36 @@ fn move_eyes_temp(
             .distance(move_randomly.to)
             < 0.1
         {
-            let plane =
-                Rectangle::from_size(Vec2::new(20., 20.));
+            let Ok((navmesh, mesh)) =
+                current_navmesh.single()
+            else {
+                return;
+            };
 
-            commands.entity(entity).insert(MoveRandomly {
-                from: transform.translation.xz(),
-                to: plane.sample_interior(&mut rng),
-            });
+            let navmesh = navmeshes.get(&navmesh.0).expect("a valid ProcessedNavMesh should fetch a valid NavMesh");
+            let mesh = meshes.get(&mesh.0).expect(
+                "a valid Mesh3d should fetch a valid Mesh",
+            );
+
+            let sampler = UniformMeshSampler::try_new(
+                mesh.triangles().unwrap(),
+            )
+            .unwrap();
+
+            let sample = rng.sample(&sampler);
+            // TODO: loop until finding a valid position in the navmesh.
+            // but for now we're using the mesh to sample so it *should* always
+            // find a valid location
+            if navmesh
+                .transformed_is_in_mesh(sample.with_y(0.))
+            {
+                commands.entity(entity).insert(
+                    MoveRandomly {
+                        from: transform.translation.xz(),
+                        to: sample.xz(),
+                    },
+                );
+            }
         } else {
             let direction = (move_randomly.to
                 - global.translation().xz())
