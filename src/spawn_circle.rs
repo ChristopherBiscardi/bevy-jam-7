@@ -301,13 +301,11 @@ fn spawn_circle_spawn(
                 .entity(entity)
                 .remove::<SpawnCircleSpawnTimer>();
 
-            let mut new_transform = *transform;
-            new_transform.translation.y = 0.5;
             // commands.trigger(event.);
             // run spawn system here
             commands.run_system_with(
                 spawn_system.0,
-                new_transform,
+                *transform,
             );
         };
     }
@@ -337,6 +335,7 @@ struct SpawnEventToTrigger(SystemId<In<Transform>>);
 pub struct InitSpawnCircle {
     pub position: Vec2,
     pub event: SystemId<In<Transform>>,
+    pub spawn_color: LinearRgba,
 }
 
 impl Command for InitSpawnCircle {
@@ -366,7 +365,7 @@ impl Command for InitSpawnCircle {
                 },
                 extension: SpawnCircleExt {
                     spawn_time: time,
-                    spawn_color: RED_400.into(),
+                    spawn_color: self.spawn_color,
                     ..default()
                 },
             });

@@ -22,11 +22,16 @@ use bevy_rand::{
 use bevy_seedling::prelude::*;
 use bevy_shader_utils::ShaderUtilsPlugin;
 use bevy_skein::SkeinPlugin;
-use rand::{Rng, prelude::Distribution};
+use rand::{
+    Rng, prelude::Distribution, seq::IndexedRandom,
+};
 
 use crate::{
     assets::{GltfAssets, JamAssetsPlugin, MyStates},
     atmosphere::DefaultAtmosphere,
+    crystals::CrystalPlugin,
+    eyes::EyeBallPlugin,
+    flock_sphere::FlockSpherePlugin,
     navmesh::{NavMeshPlugin, ProcessedNavMesh},
     spawn_circle::{
         InitSpawnCircle, SpawnSystems,
@@ -38,6 +43,9 @@ pub mod assets;
 pub mod atmosphere;
 pub mod awareness;
 pub mod controls;
+pub mod crystals;
+pub mod eyes;
+pub mod flock_sphere;
 pub mod laser;
 pub mod navmesh;
 pub mod spawn_circle;
@@ -82,22 +90,11 @@ pub fn app() -> App {
             spawn_circle::SpawnCirclePlugin,
             JamAssetsPlugin,
             NavMeshPlugin,
+            FlockSpherePlugin,
+            EyeBallPlugin,
+            CrystalPlugin,
         ))
         .add_systems(Startup, startup)
-        .add_systems(
-            FixedUpdate,
-            (
-                trigger_move_eyes_temp.run_if(
-                    any_match_filter::<(
-                        With<Eyeball>,
-                        Without<MoveRandomly>,
-                        Without<ScaleIn>,
-                        Without<TranslateUpIn>,
-                    )>,
-                ),
-                move_eyes_temp,
-            ),
-        )
         .add_systems(Update, |mut gizmos: Gizmos| {
             gizmos.circle(
                 Isometry3d::new(
@@ -174,14 +171,13 @@ fn pointer_click_spawn_eye(
 ) {
     picked.propagate(false);
     if let Some(position) = picked.hit.position {
-        let id = spawn_systems.0.get("eye").unwrap();
+        let id = spawn_systems.0.get("gem-rock").unwrap();
 
-        for i in 0..100 {
-            commands.queue(InitSpawnCircle {
-                position: position.xz(),
-                event: *id,
-            });
-        }
+        commands.queue(InitSpawnCircle {
+            position: position.xz(),
+            event: *id,
+            spawn_color: SKY_400.into(),
+        });
     } else {
         warn!("spawn attempt without a hit position");
     }
@@ -197,11 +193,6 @@ impl Default for TestSpawnTimer {
         ))
     }
 }
-
-#[derive(Component, Reflect)]
-#[reflect(Component)]
-#[type_path = "api"]
-struct Eyeball;
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
@@ -257,39 +248,6 @@ fn random_spawn_eyes(
     mut timer: Local<TestSpawnTimer>,
     time: Res<Time>,
     spawn_systems: Res<SpawnSystems>,
-) {
-    if timer.0.tick(time.delta()).just_finished() {
-        let plane =
-            Rectangle::from_size(Vec2::new(20., 20.));
-
-        let id = spawn_systems.0.get("eye").unwrap();
-
-        commands.queue(InitSpawnCircle {
-            position: plane.sample_interior(&mut rng),
-            event: *id,
-        });
-    }
-}
-
-#[derive(Component)]
-struct MoveRandomly {
-    from: Vec2,
-    to: Vec2,
-}
-
-fn trigger_move_eyes_temp(
-    query: Query<
-        (Entity, &Transform),
-        (
-            With<Eyeball>,
-            Without<MoveRandomly>,
-            Without<ScaleIn>,
-            Without<TranslateUpIn>,
-        ),
-    >,
-    mut rng: Single<&mut WyRand, With<GlobalRng>>,
-    mut commands: Commands,
-    time: Res<Time>,
     current_navmesh: Query<(&ProcessedNavMesh, &Mesh3d)>,
     meshes: Res<Assets<Mesh>>,
     navmeshes: Res<Assets<vleue_navigator::NavMesh>>,
@@ -309,106 +267,32 @@ fn trigger_move_eyes_temp(
     )
     .unwrap();
 
-    for (entity, transform) in &query {
+    if timer.0.tick(time.delta()).just_finished() {
         let sample = rng.sample(&sampler);
         // TODO: loop until finding a valid position in the navmesh.
         // but for now we're using the mesh to sample so it *should* always
         // find a valid location
         if navmesh.transformed_is_in_mesh(sample.with_y(0.))
         {
-            commands.entity(entity).insert(MoveRandomly {
-                from: transform.translation.xz(),
-                to: sample.xz(),
+            let enemy_to_spawn = ["eye", "flock-sphere"]
+                .choose(&mut rng)
+                .unwrap();
+            let id = spawn_systems
+                .0
+                .get(*enemy_to_spawn)
+                .expect("enemy {enemy_to_spawn} should have a valid spawn system registered");
+
+            commands.queue(InitSpawnCircle {
+                position: sample.xz(),
+                event: *id,
+                spawn_color: RED_400.into(),
             });
         }
     }
 }
 
-fn move_eyes_temp(
-    mut query: Query<
-        (
-            Entity,
-            &mut Transform,
-            &GlobalTransform,
-            &MoveRandomly,
-        ),
-        With<Eyeball>,
-    >,
-    mut rng: Single<&mut WyRand, With<GlobalRng>>,
-    mut commands: Commands,
-    time: Res<Time>,
-    // mut gizmos: Gizmos,
-    current_navmesh: Query<(&ProcessedNavMesh, &Mesh3d)>,
-    meshes: Res<Assets<Mesh>>,
-    navmeshes: Res<Assets<vleue_navigator::NavMesh>>,
-) {
-    for (entity, mut transform, global, move_randomly) in
-        &mut query
-    {
-        // gizmos.arrow(
-        //     global.translation(),
-        //     move_randomly
-        //         .to
-        //         .extend(global.translation().y)
-        //         .xzy(),
-        //     Color::WHITE,
-        // );
-        // gizmos.sphere(
-        //     move_randomly.to.extend(0.).xzy(),
-        //     0.5,
-        //     GREEN_400,
-        // );
-        if global
-            .translation()
-            .xz()
-            .distance(move_randomly.to)
-            < 0.1
-        {
-            let Ok((navmesh, mesh)) =
-                current_navmesh.single()
-            else {
-                return;
-            };
-
-            let navmesh = navmeshes.get(&navmesh.0).expect("a valid ProcessedNavMesh should fetch a valid NavMesh");
-            let mesh = meshes.get(&mesh.0).expect(
-                "a valid Mesh3d should fetch a valid Mesh",
-            );
-
-            let sampler = UniformMeshSampler::try_new(
-                mesh.triangles().unwrap(),
-            )
-            .unwrap();
-
-            let sample = rng.sample(&sampler);
-            // TODO: loop until finding a valid position in the navmesh.
-            // but for now we're using the mesh to sample so it *should* always
-            // find a valid location
-            if navmesh
-                .transformed_is_in_mesh(sample.with_y(0.))
-            {
-                commands.entity(entity).insert(
-                    MoveRandomly {
-                        from: transform.translation.xz(),
-                        to: sample.xz(),
-                    },
-                );
-            }
-        } else {
-            let direction = (move_randomly.to
-                - global.translation().xz())
-            .normalize();
-            let movement = direction * time.delta_secs();
-            transform.translation +=
-                movement.extend(0.).xzy();
-
-            transform.look_at(
-                move_randomly
-                    .to
-                    .extend(global.translation().y)
-                    .xzy(),
-                Vec3::Y,
-            );
-        }
-    }
+#[derive(Component)]
+struct MoveRandomly {
+    from: Vec2,
+    to: Vec2,
 }
