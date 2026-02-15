@@ -249,6 +249,29 @@
 				"BEVY_skein":{
 					"components":[
 						{
+							"api::EnergyWellMaterial":{}
+						}
+					]
+				}
+			},
+			"name":"energy-well",
+			"pbrMetallicRoughness":{
+				"baseColorFactor":[
+					0.03954574465751648,
+					0.5088658332824707,
+					0.938669741153717,
+					1
+				],
+				"metallicFactor":0,
+				"roughnessFactor":0.5
+			}
+		},
+		{
+			"doubleSided":true,
+			"extensions":{
+				"BEVY_skein":{
+					"components":[
+						{
 							"api::EnergyMaterial":{}
 						}
 					]
@@ -496,7 +519,7 @@
 						"TANGENT":33
 					},
 					"indices":34,
-					"material":5
+					"material":6
 				}
 			]
 		},
@@ -521,7 +544,7 @@
 						"TANGENT":38
 					},
 					"indices":39,
-					"material":6
+					"material":7
 				}
 			]
 		},
@@ -546,7 +569,7 @@
 						"TANGENT":43
 					},
 					"indices":44,
-					"material":7
+					"material":8
 				}
 			]
 		},
@@ -626,7 +649,7 @@
 						"TANGENT":57
 					},
 					"indices":34,
-					"material":8
+					"material":9
 				}
 			]
 		}

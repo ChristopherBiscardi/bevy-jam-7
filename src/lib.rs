@@ -32,6 +32,7 @@ use crate::{
     crystals::CrystalPlugin,
     eyes::EyeBallPlugin,
     flock_sphere::FlockSpherePlugin,
+    health::HealthPlugin,
     navmesh::{NavMeshPlugin, ProcessedNavMesh},
     spawn_circle::{
         InitSpawnCircle, SpawnSystems,
@@ -46,6 +47,7 @@ pub mod controls;
 pub mod crystals;
 pub mod eyes;
 pub mod flock_sphere;
+pub mod health;
 pub mod laser;
 pub mod navmesh;
 pub mod spawn_circle;
@@ -59,7 +61,6 @@ pub fn app() -> App {
     app.insert_resource(ClearColor(SKY_800.into()))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                // resizable: (),
                 fit_canvas_to_parent: true,
                 ..default()
             }),
@@ -93,6 +94,7 @@ pub fn app() -> App {
             FlockSpherePlugin,
             EyeBallPlugin,
             CrystalPlugin,
+            HealthPlugin,
         ))
         .add_systems(Startup, startup)
         .add_systems(Update, |mut gizmos: Gizmos| {
@@ -200,10 +202,14 @@ impl Default for TestSpawnTimer {
 #[require(controls::ControlledByPlayer)]
 struct PlayerCharacter;
 
+#[derive(Component)]
+pub struct ActivePlayerCamera;
+
 fn startup(mut commands: Commands) {
     commands.spawn((
+        ActivePlayerCamera,
         Camera3d::default(),
-        Transform::from_xyz(-1., 1., 1.)
+        Transform::from_xyz(-10., 10., 10.)
             .looking_at(Vec3::ZERO, Vec3::Y),
         DefaultAtmosphere,
         Projection::Orthographic(OrthographicProjection {

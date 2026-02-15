@@ -39,15 +39,14 @@ fn fragment(
    
     var pbr_input = pbr_input_from_standard_material(in, is_front);
 
-    let value = (in.uv.y * 30. + globals.time * 10.) % 10.;
-    let noise = perlin_noise_2d(in.uv + vec2(globals.time));
+    let noise = (perlin_noise_2d(vec2(globals.time)) + 1.0) / 2.0;
     let a = pbr_input.material.base_color.a;
-    pbr_input.material.base_color = pbr_input.material.base_color * value * 10.;
+    pbr_input.material.base_color = pbr_input.material.base_color * noise * 1000.;
     pbr_input.material.base_color.a = a;
 
-    if value < 6 {
-        discard;
-    }
+    // if noise < 0. {
+    //     discard;
+    // }
 
     // alpha discard
     pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);

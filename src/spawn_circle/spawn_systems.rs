@@ -62,6 +62,7 @@ fn scale_in(
         }
     }
 }
+
 fn translate_up_in(
     mut query: Query<(
         Entity,

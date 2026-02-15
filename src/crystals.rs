@@ -36,8 +36,16 @@ impl Plugin for CrystalPlugin {
                     EnergyExt,
                 >,
             >::default(),
+            MaterialPlugin::<
+                ExtendedMaterial<
+                    StandardMaterial,
+                    EnergyWellExt,
+                >,
+            >::default(),
         ))
         .add_observer(on_add_crystal_material)
+        .add_observer(on_add_energy_material)
+        .add_observer(on_add_energy_well_material)
         .add_systems(FixedUpdate, rotate_material);
     }
 }
@@ -76,11 +84,6 @@ fn on_add_crystal_material(
         )));
 }
 
-#[derive(Component, Reflect)]
-#[reflect(Component)]
-#[type_path = "api"]
-struct EnergyMaterial;
-
 #[derive(
     Asset, AsBindGroup, Reflect, Debug, Clone, Default,
 )]
@@ -115,6 +118,40 @@ impl MaterialExtension for CrystalExt {
     }
 }
 
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+#[type_path = "api"]
+struct EnergyMaterial;
+
+fn on_add_energy_material(
+    added: On<Add, EnergyMaterial>,
+    std_materials: Res<Assets<StandardMaterial>>,
+    mut materials: ResMut<
+        Assets<
+            ExtendedMaterial<StandardMaterial, EnergyExt>,
+        >,
+    >,
+    mut commands: Commands,
+    query: Query<&MeshMaterial3d<StandardMaterial>>,
+    time: Res<Time>,
+) {
+    let mat = std_materials
+        .get(&query.get(added.entity).unwrap().0)
+        .unwrap();
+    commands
+        .entity(added.entity)
+        .remove::<MeshMaterial3d<StandardMaterial>>()
+        .insert(MeshMaterial3d(materials.add(
+            ExtendedMaterial {
+                base: mat.clone(),
+                extension: EnergyExt {
+                    spawn_time: time.elapsed_secs(),
+                    ..default()
+                },
+            },
+        )));
+}
+
 #[derive(
     Asset, AsBindGroup, Reflect, Debug, Clone, Default,
 )]
@@ -143,6 +180,77 @@ pub struct EnergyExt {
 impl MaterialExtension for EnergyExt {
     fn fragment_shader() -> ShaderRef {
         "shaders/energy.wgsl".into()
+    }
+    fn alpha_mode() -> Option<AlphaMode> {
+        Some(AlphaMode::Add)
+    }
+}
+
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+#[type_path = "api"]
+struct EnergyWellMaterial;
+
+fn on_add_energy_well_material(
+    added: On<Add, EnergyWellMaterial>,
+    std_materials: Res<Assets<StandardMaterial>>,
+    mut materials: ResMut<
+        Assets<
+            ExtendedMaterial<
+                StandardMaterial,
+                EnergyWellExt,
+            >,
+        >,
+    >,
+    mut commands: Commands,
+    query: Query<&MeshMaterial3d<StandardMaterial>>,
+    time: Res<Time>,
+) {
+    let mat = std_materials
+        .get(&query.get(added.entity).unwrap().0)
+        .unwrap();
+    commands
+        .entity(added.entity)
+        .remove::<MeshMaterial3d<StandardMaterial>>()
+        .insert(MeshMaterial3d(materials.add(
+            ExtendedMaterial {
+                base: mat.clone(),
+                extension: EnergyWellExt {
+                    spawn_time: time.elapsed_secs(),
+                    ..default()
+                },
+            },
+        )));
+}
+
+#[derive(
+    Asset, AsBindGroup, Reflect, Debug, Clone, Default,
+)]
+pub struct EnergyWellExt {
+    // We need to ensure that the bindings of the base
+    // material and the extension do not conflict,
+    // so we start from binding slot 100, leaving slots
+    // 0-99 for the base material.
+    #[uniform(100)]
+    pub(crate) spawn_time: f32,
+    // Web examples WebGL2 support: structs must be 16 byte
+    // aligned.
+    #[cfg(feature = "webgl2")]
+    #[uniform(100)]
+    _webgl2_padding_8b: u32,
+    #[cfg(feature = "webgl2")]
+    #[uniform(100)]
+    _webgl2_padding_12b: u32,
+    #[cfg(feature = "webgl2")]
+    #[uniform(100)]
+    _webgl2_padding_16b: u32,
+    #[uniform(100)]
+    pub(crate) spawn_color: LinearRgba,
+}
+
+impl MaterialExtension for EnergyWellExt {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/energy_well.wgsl".into()
     }
     fn alpha_mode() -> Option<AlphaMode> {
         Some(AlphaMode::Add)

@@ -5,14 +5,19 @@ use std::{
 
 use bevy::{
     color::palettes::tailwind::RED_400,
-    math::sampling::UniformMeshSampler, prelude::*,
+    math::{
+        bounding::{BoundingCircle, RayCast2d},
+        sampling::UniformMeshSampler,
+    },
+    prelude::*,
 };
 use bevy_rand::{global::GlobalRng, prelude::WyRand};
 use rand::Rng;
 
 use crate::{
-    MoveRandomly,
+    MoveRandomly, PlayerCharacter,
     assets::GltfAssets,
+    health::Health,
     navmesh::ProcessedNavMesh,
     spawn_circle::spawn_systems::{
         AppSpawnExt, ScaleIn, TranslateUpIn,
@@ -182,6 +187,7 @@ fn one_shot_spawn_flock_sphere(
         (
             Name::new("FlockSphere"),
             FlockSphere,
+            Health::new(25.),
             SceneRoot(
                 gltfs.get(&gltf.misc).unwrap().named_scenes
                     ["flock-sphere"]
@@ -203,6 +209,9 @@ fn one_shot_spawn_flock_sphere(
     );
 }
 
+#[derive(Component)]
+struct LaserCooldown(Timer);
+
 fn spin_laser(
     mut query: Query<
         (
@@ -215,6 +224,14 @@ fn spin_laser(
     mut commands: Commands,
     time: Res<Time>,
     mut gizmos: Gizmos,
+    player: Single<
+        &GlobalTransform,
+        (
+            With<PlayerCharacter>,
+            Without<SpinLaserTimer>,
+        ),
+    >,
+    mut cooldowns: Query<&mut LaserCooldown>,
 ) {
     for (entity, mut laser_timer, mut transform) in
         &mut query
@@ -227,12 +244,56 @@ fn spin_laser(
 
         if laser_timer.0.tick(time.delta()).just_finished()
         {
-            commands
-                .entity(entity)
-                .remove::<(SpinLaser, SpinLaserTimer)>();
+            commands.entity(entity).remove::<(
+                SpinLaser,
+                SpinLaserTimer,
+                LaserCooldown,
+            )>();
         } else {
             transform.rotate(Quat::from_rotation_y(
                 TAU * time.delta_secs(),
+            ));
+
+            if let Ok(mut timer) = cooldowns.get_mut(entity)
+            {
+                if timer
+                    .0
+                    .tick(time.delta())
+                    .just_finished()
+                {
+                    commands
+                        .entity(entity)
+                        .remove::<LaserCooldown>();
+                    // can hit
+                } else {
+                    continue;
+                }
+            }
+
+            // Did laser hit player?
+            let player_circle = BoundingCircle {
+                center: player.translation().xz(),
+                circle: Circle { radius: 0.5 },
+            };
+
+            let ray_cast = RayCast2d::new(
+                transform.translation.xz(),
+                Dir2::new(transform.forward().xz())
+                    .unwrap(),
+                2.,
+            );
+
+            let Some(hit) = ray_cast
+                .circle_intersection_at(&player_circle)
+            else {
+                continue;
+            };
+
+            info!("hit player!");
+            // TODO handle player hits
+
+            commands.entity(entity).insert(LaserCooldown(
+                Timer::from_seconds(0.2, TimerMode::Once),
             ));
         }
     }
