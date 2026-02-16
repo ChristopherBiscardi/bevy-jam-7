@@ -49,7 +49,7 @@ fn apply_movement(
     let mut velocity = movement.value.extend(0.0).xzy();
     velocity.z = -velocity.z;
 
-    let distance_to_move = rotation * velocity * 0.03;
+    let distance_to_move = rotation * velocity * 0.06;
 
     transform.translation += distance_to_move;
     transform.rotation = Quat::from_rotation_y(

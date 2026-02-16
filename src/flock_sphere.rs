@@ -17,7 +17,7 @@ use rand::Rng;
 use crate::{
     MoveRandomly,
     assets::GltfAssets,
-    health::Health,
+    health::{Attack, Health},
     navmesh::ProcessedNavMesh,
     player::PlayerCharacter,
     spawn_circle::spawn_systems::{
@@ -226,7 +226,7 @@ fn spin_laser(
     time: Res<Time>,
     mut gizmos: Gizmos,
     players: Query<
-        &GlobalTransform,
+        (Entity, &GlobalTransform),
         (
             With<PlayerCharacter>,
             Without<SpinLaserTimer>,
@@ -271,7 +271,7 @@ fn spin_laser(
                 }
             }
 
-            for player in &players {
+            for (player_entity, player) in &players {
                 // Did laser hit player?
                 let player_circle = BoundingCircle {
                     center: player.translation().xz(),
@@ -291,8 +291,11 @@ fn spin_laser(
                     continue;
                 };
 
-                info!("hit player!");
-                // TODO handle player hits
+                commands.trigger(Attack {
+                    attacker: entity,
+                    receiver: player_entity,
+                    strength: 5.,
+                });
 
                 commands.entity(entity).insert(
                     LaserCooldown(Timer::from_seconds(

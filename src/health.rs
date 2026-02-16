@@ -9,7 +9,7 @@ use bevy::{
 };
 
 use crate::{
-    ActivePlayerCamera, Despawnable,
+    ActivePlayerCamera, Despawnable, ExpectedEnemies,
     player::PlayerCharacter,
 };
 
@@ -95,7 +95,9 @@ fn remove_dead(
 fn on_attack(
     attack: On<Attack>,
     mut health_counts: Query<&mut Health>,
+    mut expected: ResMut<ExpectedEnemies>,
 ) {
+    expected.seen_any = true;
     info!("process attack");
     let Ok(mut health) =
         health_counts.get_mut(attack.receiver)

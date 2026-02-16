@@ -8,7 +8,9 @@ use bevy::{
     input::common_conditions::input_toggle_active,
     light::{VolumetricLight, light_consts::lux},
     math::{
-        bounding::{BoundingCircle, IntersectsVolume},
+        bounding::{
+            Aabb2d, BoundingCircle, IntersectsVolume,
+        },
         sampling::UniformMeshSampler,
     },
     prelude::*,
@@ -74,10 +76,29 @@ pub mod debug_free_cam;
 #[derive(Resource, Default)]
 pub struct Despawnable(EntityHashSet);
 
+#[derive(Resource, Default, PartialEq)]
+pub struct RandomSpawn(bool);
+
+#[derive(Resource, Default, PartialEq)]
+pub struct CurrentLevel(u32);
+
+#[derive(Resource, Default, PartialEq)]
+pub struct NumEnemies(u32);
+
+#[derive(Resource, Default, PartialEq)]
+pub struct ExpectedEnemies {
+    expected: u32,
+    seen_any: bool,
+}
+
 pub fn app() -> App {
     let mut app = App::new();
 
     app.init_resource::<Despawnable>()
+        .init_resource::<RandomSpawn>()
+        .init_resource::<CurrentLevel>()
+        .init_resource::<NumEnemies>()
+        .init_resource::<ExpectedEnemies>()
         .insert_resource(ClearColor(SKY_800.into()))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
@@ -120,21 +141,29 @@ pub fn app() -> App {
             HammerSmackPlugin,
         ))
         .add_systems(Startup, startup)
-        .add_systems(Update, |mut gizmos: Gizmos| {
-            gizmos.circle(
-                Isometry3d::new(
-                    Vec3::new(0., 0.5, 0.),
-                    Quat::from_rotation_x(FRAC_PI_2),
-                ),
-                2.,
-                Color::WHITE,
-            );
-        })
+        // .add_systems(Update, |mut gizmos: Gizmos| {
+        //     gizmos.circle(
+        //         Isometry3d::new(
+        //             Vec3::new(0., 0.5, 0.),
+        //             Quat::from_rotation_x(FRAC_PI_2),
+        //         ),
+        //         2.,
+        //         Color::WHITE,
+        //     );
+        // })
         .add_observer(pointer_click_spawn_eye)
+        .add_observer(on_spawn_n_enemies)
         .add_systems(
             FixedUpdate,
-            random_spawn_eyes
-                .run_if(in_state(MyStates::Next)),
+            (
+                random_spawn_eyes.run_if(
+                    in_state(MyStates::Next).and(
+                        resource_equals(RandomSpawn(true)),
+                    ),
+                ),
+                test_end_gate
+                    .run_if(in_state(MyStates::Next)),
+            ),
         )
         .add_systems(
             OnEnter(MyStates::Next),
@@ -155,15 +184,106 @@ pub fn app() -> App {
             },
         )
         .add_observer(on_hammer_slam_finished)
-        .add_observer(on_hammer_slam_hit);
+        .add_observer(on_hammer_slam_hit)
+        .add_observer(to_next_level);
 
     app
+}
+
+#[derive(Event)]
+struct NextLevel;
+
+#[derive(Event)]
+struct SpawnNEnemies(u32);
+
+fn spawn_first_level(mut commands: Commands) {
+    commands.trigger(NextLevel);
+}
+fn to_next_level(
+    next: On<NextLevel>,
+    query: Query<
+        Entity,
+        Or<(With<PlayerCharacter>, With<SceneRoot>)>,
+    >,
+    mut commands: Commands,
+    gltfs: Res<Assets<Gltf>>,
+    gltf: Res<GltfAssets>,
+    mut current_level: ResMut<CurrentLevel>,
+    mut num_enemies: ResMut<NumEnemies>,
+    mut expected: ResMut<ExpectedEnemies>,
+) {
+    for entity in &query {
+        commands.entity(entity).try_despawn();
+    }
+
+    current_level.0 += 1;
+
+    expected.seen_any = false;
+    let next_level = match current_level.0 {
+        1 => {
+            expected.expected = 0;
+            "level-001"
+        }
+        2 => {
+            num_enemies.0 += 1;
+            expected.expected = num_enemies.0;
+
+            "level-002"
+        }
+        _ => {
+            num_enemies.0 += 3;
+            expected.expected = num_enemies.0;
+            "Scene"
+        }
+    };
+
+    commands
+        .spawn(SceneRoot(
+            gltfs.get(&gltf.misc).unwrap().named_scenes
+                [next_level]
+                .clone(),
+        ))
+        .observe(
+            |ready: On<SceneInstanceReady>,
+             children: Query<&Children>,
+             query: Query<(
+                &GltfMaterialName,
+                &MeshMaterial3d<StandardMaterial>,
+            )>,
+             mut commands: Commands,
+             num_enemies: Res<NumEnemies>| {
+                for child in
+                    children.iter_descendants(ready.entity)
+                {
+                    if let Ok((name, _material)) =
+                        query.get(child)
+                    {
+                        match name.0.as_str() {
+                            "Floor" | "Plane.002"
+                            | "Plane.001" => {
+                                commands
+                                    .entity(child)
+                                    .insert(
+                                        UseBlockoutMaterial,
+                                    );
+                            }
+                            name => {
+                                info!(?name);
+                            }
+                        };
+                    };
+                }
+
+                commands
+                    .trigger(SpawnNEnemies(num_enemies.0));
+            },
+        );
 }
 
 fn on_hammer_slam_finished(
     finished: On<HammerSlamFinished>,
 ) {
-    info!("DONE");
+    // info!("DONE");
     // play idle, remove spam prevention
 }
 fn on_hammer_slam_hit(
@@ -223,6 +343,58 @@ fn on_hammer_slam_hit(
         }
     }
 }
+
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+#[type_path = "api"]
+pub struct EndGate;
+
+fn test_end_gate(
+    query: Query<Entity, With<EndGate>>,
+    enemies: Query<
+        (),
+        (With<Health>, Without<PlayerCharacter>),
+    >,
+    mut visible: Query<&mut Visibility, With<EndGate>>,
+    player: Single<Entity, With<PlayerCharacter>>,
+    helper: TransformHelper,
+    mut commands: Commands,
+    num_enemies: Res<NumEnemies>,
+    mut expected: ResMut<ExpectedEnemies>,
+) {
+    if expected.expected == 0
+        || (enemies.iter().count() == 0
+            && expected.seen_any)
+    {
+        for mut vis in &mut visible {
+            *vis = Visibility::Visible;
+        }
+
+        let player = Aabb2d::new(
+            helper
+                .compute_global_transform(*player)
+                .unwrap()
+                .translation()
+                .xz(),
+            Vec2::splat(0.5),
+        );
+        for gate in &query {
+            let gate_location = Aabb2d::new(
+                helper
+                    .compute_global_transform(gate)
+                    .unwrap()
+                    .translation()
+                    .xz(),
+                Vec2::splat(2.),
+            );
+            if player.intersects(&gate_location) {
+                info!("next level");
+                commands.trigger(NextLevel);
+            }
+        }
+    }
+}
+
 #[derive(AnimationEvent, Clone)]
 pub struct HammerSlamFinished;
 
@@ -244,50 +416,6 @@ fn on_exit_asset_loading(
     info!(?duration);
     clip.add_event(0.375, HammerSlamHit);
     clip.add_event(duration, HammerSlamFinished);
-}
-fn spawn_first_level(
-    mut commands: Commands,
-    gltfs: Res<Assets<Gltf>>,
-    gltf: Res<GltfAssets>,
-) {
-    commands
-        .spawn(
-            SceneRoot(
-                gltfs.get(&gltf.misc).unwrap().named_scenes
-                    ["level-001"]
-                    .clone(),
-            ),
-        )
-        .observe(
-            |ready: On<SceneInstanceReady>,
-             children: Query<&Children>,
-             query: Query<(
-                &GltfMaterialName,
-                &MeshMaterial3d<StandardMaterial>,
-            )>,
-             mut commands: Commands| {
-                for child in
-                    children.iter_descendants(ready.entity)
-                {
-                    if let Ok((name, _material)) =
-                        query.get(child)
-                    {
-                        match name.0.as_str() {
-                            "Floor" => {
-                                commands
-                                    .entity(child)
-                                    .insert(
-                                        UseBlockoutMaterial,
-                                    );
-                            }
-                            name => {
-                                info!(?name);
-                            }
-                        };
-                    };
-                }
-            },
-        );
 }
 
 fn on_scene_spawn_player(
@@ -430,9 +558,10 @@ fn random_spawn_eyes(
         // find a valid location
         if navmesh.transformed_is_in_mesh(sample.with_y(0.))
         {
-            let enemy_to_spawn = ["eye", "flock-sphere"]
-                .choose(&mut rng)
-                .unwrap();
+            let enemy_to_spawn =
+                ["eye", "flock-sphere", "gem-rock"]
+                    .choose(&mut rng)
+                    .unwrap();
             let id = spawn_systems
                 .0
                 .get(*enemy_to_spawn)
@@ -451,4 +580,55 @@ fn random_spawn_eyes(
 struct MoveRandomly {
     from: Vec2,
     to: Vec2,
+}
+
+fn on_spawn_n_enemies(
+    spawn: On<SpawnNEnemies>,
+    mut commands: Commands,
+    mut rng: Single<&mut WyRand, With<GlobalRng>>,
+    spawn_systems: Res<SpawnSystems>,
+    current_navmesh: Query<(&ProcessedNavMesh, &Mesh3d)>,
+    meshes: Res<Assets<Mesh>>,
+    navmeshes: Res<Assets<vleue_navigator::NavMesh>>,
+) {
+    let spawn_count = spawn.0;
+
+    let Ok((navmesh, mesh)) = current_navmesh.single()
+    else {
+        return;
+    };
+
+    let navmesh = navmeshes.get(&navmesh.0).expect("a valid ProcessedNavMesh should fetch a valid NavMesh");
+    let mesh = meshes
+        .get(&mesh.0)
+        .expect("a valid Mesh3d should fetch a valid Mesh");
+
+    let sampler = UniformMeshSampler::try_new(
+        mesh.triangles().unwrap(),
+    )
+    .unwrap();
+
+    for _ in 0..spawn_count {
+        let sample = rng.sample(&sampler);
+        // TODO: loop until finding a valid position in the navmesh.
+        // but for now we're using the mesh to sample so it *should* always
+        // find a valid location
+        if navmesh.transformed_is_in_mesh(sample.with_y(0.))
+        {
+            let enemy_to_spawn =
+                ["eye", "flock-sphere", "gem-rock"]
+                    .choose(&mut rng)
+                    .unwrap();
+            let id = spawn_systems
+                .0
+                .get(*enemy_to_spawn)
+                .expect("enemy {enemy_to_spawn} should have a valid spawn system registered");
+
+            commands.queue(InitSpawnCircle {
+                position: sample.xz(),
+                event: *id,
+                spawn_color: RED_400.into(),
+            });
+        }
+    }
 }
