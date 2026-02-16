@@ -27,6 +27,8 @@ if abs(ext.smack_percent - abs(uv.x + uv.y)) < 0.2 {
     // return vec4(uv.x, uv.y, 0.,1.);
     discard;
 }
+return vec4(0.,1.,1.,0.);
+// return 
 }
 // float2 toPolar(float2 cartesian){
 // 	float distance = length(cartesian);
