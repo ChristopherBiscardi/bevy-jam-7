@@ -10,6 +10,7 @@ use noiz::prelude::*;
 
 use crate::{
     assets::GltfAssets,
+    health::Health,
     spawn_circle::spawn_systems::{
         AppSpawnExt, ScaleIn, TranslateUpIn,
     },
@@ -276,6 +277,7 @@ fn one_shot_spawn_gem_rock(
                     .clone(),
             ),
             *transform,
+            Health::new(200.),
             ScaleIn(Timer::new(
                 Duration::from_millis(100),
                 TimerMode::Once,

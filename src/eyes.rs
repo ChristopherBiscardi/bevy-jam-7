@@ -12,10 +12,11 @@ use bevy_rand::{global::GlobalRng, prelude::WyRand};
 use rand::Rng;
 
 use crate::{
-    MoveRandomly, PlayerCharacter,
+    MoveRandomly,
     assets::GltfAssets,
     health::Health,
     navmesh::ProcessedNavMesh,
+    player::PlayerCharacter,
     spawn_circle::spawn_systems::{
         AppSpawnExt, ScaleIn, TranslateUpIn,
     },
@@ -160,7 +161,7 @@ fn move_eyes_temp(
     current_navmesh: Query<(&ProcessedNavMesh, &Mesh3d)>,
     meshes: Res<Assets<Mesh>>,
     navmeshes: Res<Assets<vleue_navigator::NavMesh>>,
-    player: Single<
+    player: Query<
         &GlobalTransform,
         (With<PlayerCharacter>, Without<Eyeball>),
     >,
@@ -187,12 +188,13 @@ fn move_eyes_temp(
             .distance(move_randomly.to)
             < 0.1
         {
-            if player
-                .translation()
-                .xz()
-                .distance(global.translation().xz())
-                < 3.
-            {
+            if player.single().is_ok_and(|global_player| {
+                global_player
+                    .translation()
+                    .xz()
+                    .distance(global.translation().xz())
+                    < 3.
+            }) {
                 commands
                     .entity(entity)
                     .remove::<MoveRandomly>()
@@ -285,7 +287,7 @@ fn spin_laser(
     mut commands: Commands,
     time: Res<Time>,
     mut gizmos: Gizmos,
-    player: Single<
+    players: Query<
         &GlobalTransform,
         (
             With<PlayerCharacter>,
@@ -330,32 +332,37 @@ fn spin_laser(
                 }
             }
 
-            // Did laser hit player?
-            let player_circle = BoundingCircle {
-                center: player.translation().xz(),
-                circle: Circle { radius: 0.5 },
-            };
+            for player in &players {
+                // Did laser hit player?
+                let player_circle = BoundingCircle {
+                    center: player.translation().xz(),
+                    circle: Circle { radius: 0.5 },
+                };
 
-            let ray_cast = RayCast2d::new(
-                transform.translation.xz(),
-                Dir2::new(transform.forward().xz())
-                    .unwrap(),
-                2.,
-            );
+                let ray_cast = RayCast2d::new(
+                    transform.translation.xz(),
+                    Dir2::new(transform.forward().xz())
+                        .unwrap(),
+                    2.,
+                );
 
-            let Some(_) = ray_cast
-                .circle_intersection_at(&player_circle)
-            else {
-                continue;
-            };
+                let Some(_) = ray_cast
+                    .circle_intersection_at(&player_circle)
+                else {
+                    continue;
+                };
 
-            info!("hit player!");
-            // TODO handle player hits
-            // commands.trigger(DamagePlayer);
+                info!("hit player!");
+                // TODO handle player hits
+                // commands.trigger(DamagePlayer);
 
-            commands.entity(entity).insert(LaserCooldown(
-                Timer::from_seconds(0.2, TimerMode::Once),
-            ));
+                commands.entity(entity).insert(
+                    LaserCooldown(Timer::from_seconds(
+                        0.2,
+                        TimerMode::Once,
+                    )),
+                );
+            }
         }
     }
 }

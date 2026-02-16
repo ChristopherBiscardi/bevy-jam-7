@@ -15,10 +15,11 @@ use bevy_rand::{global::GlobalRng, prelude::WyRand};
 use rand::Rng;
 
 use crate::{
-    MoveRandomly, PlayerCharacter,
+    MoveRandomly,
     assets::GltfAssets,
     health::Health,
     navmesh::ProcessedNavMesh,
+    player::PlayerCharacter,
     spawn_circle::spawn_systems::{
         AppSpawnExt, ScaleIn, TranslateUpIn,
     },
@@ -224,7 +225,7 @@ fn spin_laser(
     mut commands: Commands,
     time: Res<Time>,
     mut gizmos: Gizmos,
-    player: Single<
+    players: Query<
         &GlobalTransform,
         (
             With<PlayerCharacter>,
@@ -270,31 +271,36 @@ fn spin_laser(
                 }
             }
 
-            // Did laser hit player?
-            let player_circle = BoundingCircle {
-                center: player.translation().xz(),
-                circle: Circle { radius: 0.5 },
-            };
+            for player in &players {
+                // Did laser hit player?
+                let player_circle = BoundingCircle {
+                    center: player.translation().xz(),
+                    circle: Circle { radius: 0.5 },
+                };
 
-            let ray_cast = RayCast2d::new(
-                transform.translation.xz(),
-                Dir2::new(transform.forward().xz())
-                    .unwrap(),
-                2.,
-            );
+                let ray_cast = RayCast2d::new(
+                    transform.translation.xz(),
+                    Dir2::new(transform.forward().xz())
+                        .unwrap(),
+                    2.,
+                );
 
-            let Some(hit) = ray_cast
-                .circle_intersection_at(&player_circle)
-            else {
-                continue;
-            };
+                let Some(_) = ray_cast
+                    .circle_intersection_at(&player_circle)
+                else {
+                    continue;
+                };
 
-            info!("hit player!");
-            // TODO handle player hits
+                info!("hit player!");
+                // TODO handle player hits
 
-            commands.entity(entity).insert(LaserCooldown(
-                Timer::from_seconds(0.2, TimerMode::Once),
-            ));
+                commands.entity(entity).insert(
+                    LaserCooldown(Timer::from_seconds(
+                        0.2,
+                        TimerMode::Once,
+                    )),
+                );
+            }
         }
     }
 }

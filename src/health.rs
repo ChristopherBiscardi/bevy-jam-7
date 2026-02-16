@@ -8,7 +8,10 @@ use bevy::{
     shader::ShaderRef,
 };
 
-use crate::{ActivePlayerCamera, PlayerCharacter};
+use crate::{
+    ActivePlayerCamera, Despawnable,
+    player::PlayerCharacter,
+};
 
 pub struct HealthPlugin;
 
@@ -17,7 +20,10 @@ impl Plugin for HealthPlugin {
         app.add_plugins(
             MaterialPlugin::<HealthBarMaterial>::default(),
         )
-        .add_systems(FixedUpdate, lerp_health)
+        .add_systems(
+            FixedUpdate,
+            (lerp_health, remove_dead),
+        )
         .add_systems(
             Update,
             (align_healthbars, sync_health),
@@ -50,8 +56,8 @@ impl Health {
     pub fn new(total: f32) -> Self {
         Self {
             total,
-            last: 15.,   //total,
-            current: 5., //total,
+            last: total,
+            current: total,
         }
     }
 }
@@ -64,8 +70,27 @@ pub struct HealthBarOf {
 }
 
 #[derive(Component)]
-#[relationship_target(relationship = HealthBarOf)]
+#[relationship_target(relationship = HealthBarOf, linked_spawn)]
 pub struct HealthBarDisplay(Vec<Entity>);
+
+fn remove_dead(
+    query: Query<
+        (Entity, &Health),
+        Without<PlayerCharacter>,
+    >,
+    // mut commands: Commands,
+    mut despawnable: ResMut<Despawnable>,
+) {
+    for (entity, health) in &query {
+        if health.current <= 0.1 {
+            // TODO: despawn without "try_despawn"; too late in the
+            // jam to debug
+            despawnable.0.insert(entity);
+
+            // commands.entity(entity).try_despawn();
+        }
+    }
+}
 
 fn on_attack(
     attack: On<Attack>,
@@ -111,6 +136,7 @@ fn on_add_health(
             total: 0.,
             last: 0.,
             current: 0.,
+            ..default()
         })),
         // Visibility::Hidden,
         Transform::default().with_rotation(
@@ -142,7 +168,9 @@ fn align_healthbars(
 }
 
 // This struct defines the data that will be passed to your shader
-#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
+#[derive(
+    Asset, TypePath, AsBindGroup, Debug, Clone, Default,
+)]
 struct HealthBarMaterial {
     #[uniform(0)]
     health_color: LinearRgba,
@@ -154,10 +182,12 @@ struct HealthBarMaterial {
     last: f32,
     #[uniform(0)]
     current: f32,
+    #[cfg(feature = "webgl2")]
+    #[uniform(0)]
+    // Web examples WebGL2 support: structs must be 16 byte aligned.
+    _webgl2_padding_8b: u32,
 }
 
-/// The Material trait is very configurable, but comes with sensible defaults for all methods.
-/// You only need to implement functions for features that need non-default behavior. See the Material api docs for details!
 impl Material for HealthBarMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/health.wgsl".into()

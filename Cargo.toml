@@ -50,6 +50,8 @@ rand_core = "0.10.0"
 bevy_asset_loader = { version = "0.25.0", features = ["progress_tracking"] }
 iyes_progress = "0.16.0"
 vleue_navigator = "0.15.0"
+gltf = "1.4.1"
+
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.3", features = ["wasm_js"] }
 

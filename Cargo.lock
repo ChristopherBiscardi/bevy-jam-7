@@ -455,6 +455,7 @@ dependencies = [
  "bevy_shader_utils",
  "bevy_skein",
  "getrandom 0.3.4",
+ "gltf",
  "iyes_progress",
  "noiz",
  "rand",

@@ -3,13 +3,16 @@ use std::f32::consts::FRAC_PI_4;
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
+use crate::animation_extension::Animations;
+
 pub struct ControlsPlugin;
 
 impl Plugin for ControlsPlugin {
     fn build(&self, app: &mut App) {
         app.add_input_context::<PlayerControls>() // All contexts should be registered.
             .add_observer(apply_movement)
-            .add_observer(on_add_controls);
+            .add_observer(on_add_controls)
+            .add_observer(on_hammer_slam);
     }
 }
 
@@ -19,6 +22,10 @@ struct PlayerControls;
 #[derive(InputAction)]
 #[action_output(Vec2)]
 struct Movement;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+struct HammerSlam;
 
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]
@@ -42,7 +49,7 @@ fn apply_movement(
     let mut velocity = movement.value.extend(0.0).xzy();
     velocity.z = -velocity.z;
 
-    let distance_to_move = rotation * velocity;
+    let distance_to_move = rotation * velocity * 0.03;
 
     transform.translation += distance_to_move;
     transform.rotation = Quat::from_rotation_y(
@@ -61,12 +68,38 @@ fn on_add_controls(
                 Action::<Movement>::new(),
                 DeadZone::default(),
                 SmoothNudge::default(),
-                Scale::splat(0.10),
                 Bindings::spawn((
                     Cardinal::wasd_keys(),
                     Axial::left_stick(),
                 )),
-            ),]
+            ),(
+                Action::<HammerSlam>::new(),
+               bindings!(
+                    MouseButton::Left
+                )
+            )]
         ),
     ));
+}
+
+#[derive(Component)]
+struct Slamming;
+
+fn on_hammer_slam(
+    slam: On<Start<HammerSlam>>,
+    mut transforms: Query<
+        &mut Transform,
+        With<ControlledByPlayer>,
+    >,
+    // hack for animation-having player
+    animations: Single<(&mut AnimationPlayer, &Animations)>,
+) {
+    info!(?slam);
+    let (mut player, animations) = animations.into_inner();
+    player.stop_all();
+
+    player.play(animations.by_name("hammer-slam"));
+    // let mut transform =
+    //     transforms.get_mut(slam.context).unwrap();
+    // info!(?transform);
 }

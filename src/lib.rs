@@ -1,11 +1,16 @@
-use std::f32::consts::FRAC_PI_2;
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 
 use bevy::{
+    animation::AnimationEvent,
     color::palettes::tailwind::*,
+    ecs::entity::EntityHashSet,
     gltf::GltfMaterialName,
     input::common_conditions::input_toggle_active,
     light::{VolumetricLight, light_consts::lux},
-    math::sampling::UniformMeshSampler,
+    math::{
+        bounding::{BoundingCircle, IntersectsVolume},
+        sampling::UniformMeshSampler,
+    },
     prelude::*,
     scene::SceneInstanceReady,
 };
@@ -27,19 +32,28 @@ use rand::{
 };
 
 use crate::{
+    animation_extension::GltfExtensionHandlerAnimationPlugin,
     assets::{GltfAssets, JamAssetsPlugin, MyStates},
     atmosphere::DefaultAtmosphere,
     crystals::CrystalPlugin,
     eyes::EyeBallPlugin,
     flock_sphere::FlockSpherePlugin,
-    health::HealthPlugin,
+    hammer_smack::{
+        HammerSmack, HammerSmackMaterial, HammerSmackPlugin,
+    },
+    health::{Attack, Health, HealthPlugin},
     navmesh::{NavMeshPlugin, ProcessedNavMesh},
+    player::{
+        PlayerCharacter, PlayerPlugin, PlayerSpawnLocation,
+        SpawnPlayer,
+    },
     spawn_circle::{
         InitSpawnCircle, SpawnSystems,
         spawn_systems::{ScaleIn, TranslateUpIn},
     },
 };
 
+pub mod animation_extension;
 pub mod assets;
 pub mod atmosphere;
 pub mod awareness;
@@ -47,18 +61,24 @@ pub mod controls;
 pub mod crystals;
 pub mod eyes;
 pub mod flock_sphere;
+pub mod hammer_smack;
 pub mod health;
 pub mod laser;
 pub mod navmesh;
+pub mod player;
 pub mod spawn_circle;
 
 #[cfg(feature = "free_camera")]
 pub mod debug_free_cam;
 
+#[derive(Resource, Default)]
+pub struct Despawnable(EntityHashSet);
+
 pub fn app() -> App {
     let mut app = App::new();
 
-    app.insert_resource(ClearColor(SKY_800.into()))
+    app.init_resource::<Despawnable>()
+        .insert_resource(ClearColor(SKY_800.into()))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 fit_canvas_to_parent: true,
@@ -95,6 +115,9 @@ pub fn app() -> App {
             EyeBallPlugin,
             CrystalPlugin,
             HealthPlugin,
+            PlayerPlugin,
+            GltfExtensionHandlerAnimationPlugin,
+            HammerSmackPlugin,
         ))
         .add_systems(Startup, startup)
         .add_systems(Update, |mut gizmos: Gizmos| {
@@ -116,11 +139,112 @@ pub fn app() -> App {
         .add_systems(
             OnEnter(MyStates::Next),
             spawn_first_level,
-        );
+        )
+        .add_observer(on_scene_spawn_player)
+        .add_systems(
+            OnExit(MyStates::AssetLoading),
+            on_exit_asset_loading,
+        )
+        .add_systems(
+            Last,
+            |mut despawnable: ResMut<Despawnable>,
+             mut commands: Commands| {
+                for entity in despawnable.0.drain() {
+                    commands.entity(entity).try_despawn();
+                }
+            },
+        )
+        .add_observer(on_hammer_slam_finished)
+        .add_observer(on_hammer_slam_hit);
 
     app
 }
 
+fn on_hammer_slam_finished(
+    finished: On<HammerSlamFinished>,
+) {
+    info!("DONE");
+    // play idle, remove spam prevention
+}
+fn on_hammer_slam_hit(
+    finished: On<HammerSlamHit>,
+    players: Query<
+        (Entity, &GlobalTransform),
+        With<PlayerCharacter>,
+    >,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<HammerSmackMaterial>>,
+    enemies: Query<
+        (Entity, &Transform),
+        (With<Health>, Without<PlayerCharacter>),
+    >,
+) {
+    let Ok((player_entity, player)) = players.single()
+    else {
+        warn!("non-single player!");
+        return;
+    };
+    let translation = player.forward().as_vec3().xz() * 2.;
+    let mut new_transform = player.compute_transform();
+    new_transform.translation.x -= translation.x;
+    new_transform.translation.z -= translation.y;
+    new_transform.translation.y = 0.1;
+
+    commands.spawn((
+        Name::new("hammer_hit_effect"),
+        Mesh3d(meshes.add(
+            Circle::new(1.5).mesh().build().rotated_by(
+                Quat::from_rotation_x(-FRAC_PI_2),
+            ),
+        )),
+        MeshMaterial3d(materials.add(
+            HammerSmackMaterial { smack_percent: 0. },
+        )),
+        HammerSmack::default(),
+        new_transform,
+    ));
+    let hit_circle = BoundingCircle {
+        center: new_transform.translation.xz(),
+        circle: Circle { radius: 1.5 },
+    };
+    for (entity, enemy) in enemies {
+        let enemy = BoundingCircle {
+            center: enemy.translation.xz(),
+            circle: Circle::new(0.5),
+        };
+
+        if enemy.intersects(&hit_circle) {
+            commands.trigger(Attack {
+                attacker: player_entity,
+                receiver: entity,
+                strength: 20.,
+            });
+        }
+    }
+}
+#[derive(AnimationEvent, Clone)]
+pub struct HammerSlamFinished;
+
+#[derive(AnimationEvent, Clone)]
+pub struct HammerSlamHit;
+
+fn on_exit_asset_loading(
+    gltf: Res<GltfAssets>,
+    gltfs: Res<Assets<Gltf>>,
+    mut clips: ResMut<Assets<AnimationClip>>,
+) {
+    let animations =
+        &gltfs.get(&gltf.misc).unwrap().named_animations;
+    let mut clip =
+        clips.get_mut(&animations["hammer-slam"]).unwrap();
+
+    // 24 fps?
+    let duration = clip.duration();
+    info!(?duration);
+    clip.add_event(0.375, HammerSlamHit);
+    clip.add_event(duration, HammerSlamFinished);
+}
 fn spawn_first_level(
     mut commands: Commands,
     gltfs: Res<Assets<Gltf>>,
@@ -130,7 +254,7 @@ fn spawn_first_level(
         .spawn(
             SceneRoot(
                 gltfs.get(&gltf.misc).unwrap().named_scenes
-                    ["Scene"]
+                    ["level-001"]
                     .clone(),
             ),
         )
@@ -166,23 +290,55 @@ fn spawn_first_level(
         );
 }
 
+fn on_scene_spawn_player(
+    ready: On<SceneInstanceReady>,
+    query: Query<
+        &GlobalTransform,
+        With<PlayerSpawnLocation>,
+    >,
+    children: Query<&Children>,
+    mut commands: Commands,
+    transform_helper: TransformHelper,
+) {
+    let Some(entity) = children
+        .iter_descendants(ready.entity)
+        .find(|entity| query.get(*entity).is_ok())
+    else {
+        return;
+    };
+    let player_spawn = transform_helper
+        .compute_global_transform(entity)
+        .unwrap();
+    commands.queue(SpawnPlayer {
+        position: player_spawn.compute_transform(),
+        remaining_health: None,
+    });
+}
 fn pointer_click_spawn_eye(
     mut picked: On<Pointer<Click>>,
     mut commands: Commands,
     spawn_systems: Res<SpawnSystems>,
+    player_spawn: Single<
+        &GlobalTransform,
+        With<PlayerSpawnLocation>,
+    >,
 ) {
     picked.propagate(false);
-    if let Some(position) = picked.hit.position {
-        let id = spawn_systems.0.get("gem-rock").unwrap();
+    // if let Some(position) = picked.hit.position {
+    //     // let id = spawn_systems.0.get("gem-rock").unwrap();
 
-        commands.queue(InitSpawnCircle {
-            position: position.xz(),
-            event: *id,
-            spawn_color: SKY_400.into(),
-        });
-    } else {
-        warn!("spawn attempt without a hit position");
-    }
+    //     // commands.queue(InitSpawnCircle {
+    //     //     position: position.xz(),
+    //     //     event: *id,
+    //     //     spawn_color: SKY_400.into(),
+    //     // });
+    // } else {
+    //     warn!("spawn attempt without a hit position");
+    // }
+    // commands.queue(SpawnPlayer {
+    //     position: player_spawn.compute_transform(),
+    //     remaining_health: None,
+    // });
 }
 
 #[derive(Component)]
@@ -195,12 +351,6 @@ impl Default for TestSpawnTimer {
         ))
     }
 }
-
-#[derive(Component, Reflect)]
-#[reflect(Component)]
-#[type_path = "api"]
-#[require(controls::ControlledByPlayer)]
-struct PlayerCharacter;
 
 #[derive(Component)]
 pub struct ActivePlayerCamera;
